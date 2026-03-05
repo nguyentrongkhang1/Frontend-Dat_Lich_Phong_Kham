@@ -74,6 +74,7 @@ export default function AdminLayout() {
                 <header className="bg-white px-8 py-5 border-b border-gray-100 flex items-center justify-between">
                     <h1 className="text-xl font-bold text-gray-800 tracking-tight">
                         {path.includes('/dashboard') && 'Báo cáo doanh thu & Lượt khám'}
+                        {path.includes('/appointments') && 'Lịch khám hôm nay (Bác sĩ)'}
                         {path.includes('/doctors') && 'Quản lý Bác sĩ'}
                         {path.includes('/patients/records') && 'Hồ sơ bệnh án'}
                         {path.includes('/profile') && 'Hồ sơ chuyên môn Bác sĩ'}
