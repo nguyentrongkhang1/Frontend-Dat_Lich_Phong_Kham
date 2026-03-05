@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
-import { User, Calendar, Clock, CheckCircle, CreditCard, ChevronRight, Stethoscope, Briefcase } from 'lucide-react';
+import { User, Calendar, Clock, CheckCircle, CreditCard, ChevronRight, Stethoscope, Briefcase, FileText } from 'lucide-react';
 
 export default function BookingFlow() {
     const [step, setStep] = useState(1);
@@ -15,10 +16,17 @@ export default function BookingFlow() {
         symptoms: ''
     });
 
+    // Modal thành công
+    const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+
     const timeSlots = ['08:00', '08:30', '09:00', '09:30', '10:00', '13:30', '14:00', '15:30', '16:00'];
 
     const nextStep = () => setStep(s => Math.min(s + 1, 4));
     const prevStep = () => setStep(s => Math.max(s - 1, 1));
+
+    const handleConfirmBooking = () => {
+        setIsSuccessModalOpen(true);
+    };
 
     const Stepper = () => (
         <div className="flex items-center justify-between w-full mb-12 relative">
@@ -32,7 +40,7 @@ export default function BookingFlow() {
                 { num: 4, title: 'Xác nhận', icon: <CheckCircle className="w-5 h-5" /> }
             ].map((s) => (
                 <div key={s.num} className="flex flex-col items-center gap-2">
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg transition-all duration-300 ${step >= s.num ? 'bg-primary text-white shadow-lg shadow-blue-500/30' : 'bg-white text-gray-400 border-2 border-gray-100'
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg transition-all duration-300 z-10 ${step >= s.num ? 'bg-primary text-white shadow-lg shadow-blue-500/30 border-2 border-primary' : 'bg-white text-gray-400 border-2 border-gray-200'
                         }`}>
                         {step > s.num ? <CheckCircle className="w-6 h-6" /> : s.icon}
                     </div>
@@ -188,7 +196,7 @@ export default function BookingFlow() {
                                 <h2 className="text-2xl font-bold text-gray-900 mb-2 text-center">Xác nhận Đặt lịch</h2>
                                 <p className="text-center text-gray-500 mb-8 max-w-sm mx-auto">Vui lòng kiểm tra lại thông tin cuộc hẹn trước khi xác nhận lưu lên hệ thống.</p>
 
-                                <div className="bg-gray-50 rounded-2xl border border-gray-100 p-6 max-w-lg mx-auto space-y-4">
+                                <div className="bg-gray-50 rounded-2xl border border-gray-100 p-6 max-w-lg mx-auto space-y-4 shadow-inner">
                                     <div className="flex justify-between border-b border-gray-200 pb-3">
                                         <span className="text-sm text-gray-500 font-semibold">Bệnh nhân</span>
                                         <span className="text-sm font-bold text-gray-900">{formData.patientName} - {formData.phone}</span>
@@ -236,7 +244,7 @@ export default function BookingFlow() {
                             </button>
                         ) : (
                             <button
-                                onClick={() => alert("Đặt lịch thành công!")}
+                                onClick={handleConfirmBooking}
                                 className="bg-emerald-500 hover:bg-emerald-600 text-white px-8 py-3 rounded-xl font-bold transition-all shadow-md shadow-emerald-500/20 flex items-center gap-2"
                             >
                                 <CreditCard className="w-5 h-5" />
@@ -247,6 +255,46 @@ export default function BookingFlow() {
 
                 </div>
             </div>
+
+            {/* --- MODAL THÀNH CÔNG --- */}
+            {isSuccessModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm">
+                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden text-center animate-fade-in-up">
+                        <div className="bg-emerald-500 p-8 pt-10 pb-12 flex flex-col items-center">
+                            <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center shadow-lg shadow-emerald-700/30 mb-5 relative">
+                                <CheckCircle className="w-10 h-10 text-emerald-500 absolute" />
+                                <div className="absolute inset-0 rounded-full border-4 border-emerald-500 opacity-20 animate-ping"></div>
+                            </div>
+                            <h2 className="text-2xl font-bold text-white mb-2">Đặt lịch thành công!</h2>
+                            <p className="text-emerald-100 text-sm px-4">Đơn đặt khám của bạn đã được ghi nhận. Hệ thống sẽ sớm gửi tin nhắn SMS xác nhận.</p>
+                        </div>
+
+                        <div className="p-8 pb-10 bg-white">
+                            <div className="bg-gray-50 rounded-2xl p-4 text-left border border-gray-100 mb-8 mt-[-40px] shadow-sm bg-white relative">
+                                <div className="text-xs text-gray-500 font-bold uppercase tracking-wider mb-2 pb-2 border-b border-gray-100">Chi tiết cuộc hẹn</div>
+                                <p className="text-sm font-semibold text-gray-900 mb-1">{formData.specialty}</p>
+                                <p className="text-xs text-gray-500"><Clock className="w-3.5 h-3.5 inline text-primary mr-1" /> {formData.time} | {formData.date}</p>
+                            </div>
+
+                            <div className="flex flex-col gap-3">
+                                <Link
+                                    to="/patient/history"
+                                    className="flex items-center justify-center gap-2 w-full py-3.5 bg-primary hover:bg-primary-dark text-white font-bold rounded-xl transition-colors shadow-sm shadow-blue-500/20"
+                                >
+                                    <FileText className="w-5 h-5" />
+                                    Xem lịch sử khám
+                                </Link>
+                                <Link
+                                    to="/"
+                                    className="w-full py-3.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition-colors"
+                                >
+                                    Về trang chủ
+                                </Link>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <Footer />
         </div>

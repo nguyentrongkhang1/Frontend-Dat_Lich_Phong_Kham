@@ -33,7 +33,7 @@ export default function Navbar() {
                     )}
 
                     {(role === 'DOCTOR' || role === 'ADMIN') && (
-                        <Link to="/admin" className="hover:text-primary transition-colors font-bold text-emerald-600">Trang Quản trị</Link>
+                        <Link to={role === 'ADMIN' ? '/admin/dashboard' : '/admin/appointments'} className="hover:text-primary transition-colors font-bold text-emerald-600">Trang Quản trị</Link>
                     )}
                 </div>
 
@@ -45,8 +45,10 @@ export default function Navbar() {
                         onChange={(e) => {
                             const newRole = e.target.value;
                             switchRoleQuickly(newRole);
-                            if (newRole === 'ADMIN' || newRole === 'DOCTOR') {
-                                navigate('/admin');
+                            if (newRole === 'ADMIN') {
+                                navigate('/admin/dashboard');
+                            } else if (newRole === 'DOCTOR') {
+                                navigate('/admin/appointments');
                             } else if (newRole === 'PATIENT') {
                                 navigate('/patient/history');
                             } else {

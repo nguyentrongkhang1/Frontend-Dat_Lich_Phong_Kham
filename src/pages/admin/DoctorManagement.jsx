@@ -1,18 +1,71 @@
-import React from 'react';
-import { Search, Plus } from 'lucide-react';
-
-const doctors = [
-    { id: 1, name: 'BS. Trần Thu Hà', specialty: 'Nhi khoa', schedule: 'Sáng Thứ 2, 4, 6', status: 'Đang hoạt động' },
-    { id: 2, name: 'BS. Nguyễn Văn A', specialty: 'Khoa Nội', schedule: 'Chiều Thứ 3, 5', status: 'Nghỉ phép' },
-];
+import React, { useState } from 'react';
+import { Search, Plus, Edit2, Trash2, X, UserCog } from 'lucide-react';
 
 export default function DoctorManagement() {
-    return (
-        <div className="max-w-6xl space-y-6">
+    // 1. STATE QUẢN LÝ DỮ LIỆU
+    const [doctors, setDoctors] = useState([
+        { id: 1, name: 'BS. Trần Thu Hà', specialty: 'Nhi khoa', schedule: 'Sáng Thứ 2, 4, 6', status: 'Đang hoạt động' },
+        { id: 2, name: 'BS. Nguyễn Văn A', specialty: 'Khoa Nội', schedule: 'Chiều Thứ 3, 5', status: 'Nghỉ phép' },
+    ]);
 
+    // 2. STATE CHO MODAL
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [modalMode, setModalMode] = useState('add');
+    const [selectedDoctor, setSelectedDoctor] = useState(null);
+
+    const initialFormData = { name: '', specialty: 'Nhi khoa', schedule: '', status: 'Đang hoạt động' };
+    const [formData, setFormData] = useState(initialFormData);
+
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [doctorToDelete, setDoctorToDelete] = useState(null);
+
+    // --- CÁC HÀM XỬ LÝ (MOCK ACTIONS) ---
+
+    const handleOpenAdd = () => {
+        setModalMode('add');
+        setFormData(initialFormData);
+        setIsModalOpen(true);
+    };
+
+    const handleOpenEdit = (doctor) => {
+        setModalMode('edit');
+        setSelectedDoctor(doctor);
+        setFormData(doctor);
+        setIsModalOpen(true);
+    };
+
+    const handleSave = (e) => {
+        e.preventDefault();
+        if (modalMode === 'add') {
+            const newDoc = { ...formData, id: doctors.length + 1 };
+            setDoctors([...doctors, newDoc]);
+        } else {
+            setDoctors(doctors.map(d => d.id === selectedDoctor.id ? { ...formData, id: d.id } : d));
+        }
+        setIsModalOpen(false);
+    };
+
+    const handleOpenDelete = (doctor) => {
+        setDoctorToDelete(doctor);
+        setIsDeleteModalOpen(true);
+    };
+
+    const confirmDelete = () => {
+        setDoctors(doctors.filter(d => d.id !== doctorToDelete.id));
+        setIsDeleteModalOpen(false);
+        setDoctorToDelete(null);
+    };
+
+    return (
+        <div className="max-w-6xl space-y-6 relative">
+
+            {/* Header & Công cụ */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-2">
                 <p className="text-gray-500 text-sm">Xem danh sách, tìm kiếm và phân quyền cho đội ngũ y bác sĩ</p>
-                <button className="bg-primary hover:bg-primary-dark text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2 shadow-sm shadow-blue-500/20">
+                <button
+                    onClick={handleOpenAdd}
+                    className="bg-primary hover:bg-primary-dark text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2 shadow-sm shadow-blue-500/20"
+                >
                     <Plus className="w-4 h-4" />
                     Thêm bác sĩ mới
                 </button>
@@ -34,43 +87,142 @@ export default function DoctorManagement() {
                     <option>Tất cả chuyên khoa</option>
                     <option>Nhi khoa</option>
                     <option>Khoa Nội</option>
+                    <option>Sản phụ khoa</option>
                 </select>
             </div>
 
             {/* Table */}
             <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
-                <table className="min-w-full divide-y divide-gray-100">
-                    <thead className="bg-gray-50/50">
-                        <tr>
-                            <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Bác sĩ</th>
-                            <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Chuyên khoa</th>
-                            <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Lịch làm việc</th>
-                            <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Trạng thái</th>
-                            <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Thao tác</th>
-                        </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-100">
-                        {doctors.map((doctor) => (
-                            <tr key={doctor.id} className="hover:bg-gray-50 transition-colors">
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">{doctor.name}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{doctor.specialty}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{doctor.schedule}</td>
-                                <td className="px-6 py-4 whitespace-nowrap">
-                                    <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${doctor.status === 'Đang hoạt động'
-                                            ? 'bg-emerald-50 text-emerald-700'
-                                            : 'bg-red-50 text-red-700'
-                                        }`}>
-                                        {doctor.status}
-                                    </span>
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-primary hover:text-primary-dark cursor-pointer">
-                                    Chỉnh sửa
-                                </td>
+                <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-100">
+                        <thead className="bg-gray-50/50">
+                            <tr>
+                                <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Bác sĩ</th>
+                                <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Chuyên khoa</th>
+                                <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Lịch làm việc</th>
+                                <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Trạng thái</th>
+                                <th scope="col" className="px-6 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Thao tác</th>
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-100">
+                            {doctors.length === 0 ? (
+                                <tr>
+                                    <td colSpan="5" className="px-6 py-12 text-center text-gray-500">
+                                        Không có dữ liệu bác sĩ.
+                                    </td>
+                                </tr>
+                            ) : doctors.map((doctor) => (
+                                <tr key={doctor.id} className="hover:bg-gray-50 transition-colors">
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
+                                                <UserCog className="w-5 h-5" />
+                                            </div>
+                                            <div className="text-sm font-bold text-gray-900">{doctor.name}</div>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                        <span className="text-sm text-gray-600 font-medium bg-gray-100 px-3 py-1 rounded inline-block">{doctor.specialty}</span>
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{doctor.schedule}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                        <span className={`px-3 py-1.5 inline-flex text-xs font-bold rounded-full border ${doctor.status === 'Đang hoạt động'
+                                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                            : 'bg-red-50 text-red-700 border-red-200'
+                                            }`}>
+                                            {doctor.status}
+                                        </span>
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
+                                        <div className="flex items-center justify-end gap-2">
+                                            <button
+                                                onClick={() => handleOpenEdit(doctor)}
+                                                className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors tooltip"
+                                                title="Sửa thông tin"
+                                            ><Edit2 className="w-4 h-4" /></button>
+                                            <button
+                                                onClick={() => handleOpenDelete(doctor)}
+                                                className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors tooltip"
+                                                title="Xóa bác sĩ"
+                                            ><Trash2 className="w-4 h-4" /></button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
             </div>
+
+            {/* --- MODALS --- */}
+
+            {/* Modal Thêm/Sửa */}
+            {isModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm">
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden border border-gray-100 animate-fade-in-up">
+                        <div className="flex items-center justify-between p-5 border-b border-gray-100 bg-gray-50/50">
+                            <h3 className="text-lg font-bold text-gray-900">
+                                {modalMode === 'add' ? 'Thêm Bác Sĩ Mới' : 'Sửa Thông Tin Bác Sĩ'}
+                            </h3>
+                            <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600 p-1"><X className="w-5 h-5" /></button>
+                        </div>
+
+                        <form onSubmit={handleSave} className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">Họ & Tên Bác sĩ</label>
+                                <input required type="text" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-primary focus:border-primary" placeholder="VD: BS. CKI Nguyễn Văn C" />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">Chuyên khoa</label>
+                                    <select value={formData.specialty} onChange={e => setFormData({ ...formData, specialty: e.target.value })} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-primary focus:border-primary">
+                                        <option value="Nhi khoa">Nhi khoa</option>
+                                        <option value="Khoa Nội">Khoa Nội</option>
+                                        <option value="Sản phụ khoa">Sản phụ khoa</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">Trạng thái</label>
+                                    <select value={formData.status} onChange={e => setFormData({ ...formData, status: e.target.value })} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-primary focus:border-primary">
+                                        <option value="Đang hoạt động">Đang hoạt động</option>
+                                        <option value="Nghỉ phép">Nghỉ phép</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">Lịch làm việc</label>
+                                <input required type="text" value={formData.schedule} onChange={e => setFormData({ ...formData, schedule: e.target.value })} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-primary focus:border-primary" placeholder="VD: Sáng Thứ 2, 4, 6" />
+                            </div>
+
+                            <div className="pt-4 flex items-center justify-end gap-3 border-t border-gray-100 mt-6">
+                                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg text-sm transition-colors">Hủy</button>
+                                <button type="submit" className="px-5 py-2 bg-primary hover:bg-primary-dark text-white font-bold rounded-lg text-sm transition-colors shadow-sm shadow-blue-500/20">
+                                    {modalMode === 'add' ? 'Lưu Bác Sĩ' : 'Cập Nhật'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal Xóa */}
+            {isDeleteModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm">
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden border border-gray-100 p-6 text-center animate-fade-in-up">
+                        <div className="w-16 h-16 bg-red-100 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <Trash2 className="w-8 h-8" />
+                        </div>
+                        <h3 className="text-xl font-bold text-gray-900 mb-2">Xóa bác sĩ?</h3>
+                        <p className="text-gray-500 text-sm mb-6">Bạn có chắc chắn muốn xóa <span className="font-bold text-gray-800">{doctorToDelete?.name}</span>? Thao tác này sẽ loại bỏ bác sĩ khỏi danh sách chuyên khoa.</p>
+
+                        <div className="flex justify-center gap-3">
+                            <button onClick={() => setIsDeleteModalOpen(false)} className="px-4 py-2 flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-lg text-sm transition-colors">Hủy</button>
+                            <button onClick={confirmDelete} className="px-4 py-2 flex-1 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg text-sm transition-colors">Xóa</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
         </div>
     );
 }

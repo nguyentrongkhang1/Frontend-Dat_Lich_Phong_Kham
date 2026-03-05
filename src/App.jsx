@@ -1,6 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './contexts/AuthContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import Home from './pages/Home';
 import Auth from './pages/Auth';
@@ -21,6 +21,14 @@ import DoctorProfile from './pages/admin/DoctorProfile';
 import DoctorExamination from './pages/admin/DoctorExamination';
 import Appointments from './pages/admin/Appointments';
 import MedicalRecordDetail from './pages/MedicalRecordDetail';
+import Reception from './pages/admin/Reception';
+
+const AdminIndexRedirect = () => {
+    const { role } = useAuth();
+    if (role === 'ADMIN') return <Navigate to="dashboard" replace />;
+    if (role === 'DOCTOR') return <Navigate to="appointments" replace />;
+    return <Navigate to="/" replace />;
+};
 
 function App() {
     return (
@@ -65,13 +73,14 @@ function App() {
                             <AdminLayout />
                         </ProtectedRoute>
                     }>
-                        <Route index element={<Navigate to="dashboard" replace />} />
+                        <Route index element={<AdminIndexRedirect />} />
 
                         {/* Các chức năng chỉ ADMIN */}
                         <Route path="dashboard" element={<ProtectedRoute allowedRoles={['ADMIN']}><RevenueDashboard /></ProtectedRoute>} />
                         <Route path="doctors" element={<ProtectedRoute allowedRoles={['ADMIN']}><DoctorManagement /></ProtectedRoute>} />
                         <Route path="users" element={<ProtectedRoute allowedRoles={['ADMIN']}><UserManagement /></ProtectedRoute>} />
                         <Route path="specialties" element={<ProtectedRoute allowedRoles={['ADMIN']}><SpecialtyManagement /></ProtectedRoute>} />
+                        <Route path="reception" element={<ProtectedRoute allowedRoles={['ADMIN']}><Reception /></ProtectedRoute>} />
 
                         {/* Các chức năng chỉ DOCTOR */}
                         <Route path="appointments" element={<ProtectedRoute allowedRoles={['DOCTOR']}><Appointments /></ProtectedRoute>} />

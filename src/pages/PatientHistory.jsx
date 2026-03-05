@@ -1,55 +1,120 @@
 import React, { useState } from 'react';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
-import { Calendar, Clock, MapPin, User, FileText, Pill, ChevronDown, ChevronUp, CheckCircle, AlertCircle } from 'lucide-react';
-
-const historyData = [
-    {
-        id: 'AP-2026-0315',
-        date: '15/03/2026',
-        time: '09:30 AM',
-        doctor: 'BS. Trần Thu Hà',
-        specialty: 'Nhi khoa',
-        hospital: 'Cơ sở Quận 1',
-        status: 'Hoàn thành',
-        diagnosis: 'Viêm họng cấp, sốt nhẹ. Cần theo dõi thêm trong 3 ngày và tái khám nếu triệu chứng không giảm.',
-        prescription: [
-            { name: 'Paracetamol 500mg', quantity: '10 Viên', usage: 'Uống sau ăn sáng/tối' },
-            { name: 'Amoxicillin 500mg', quantity: '15 Viên', usage: 'Uống 3 lần/ngày (8h cách nhau)' }
-        ]
-    },
-    {
-        id: 'AP-2025-1102',
-        date: '02/11/2025',
-        time: '14:00 PM',
-        doctor: 'PGS. TS. Nguyễn Văn A',
-        specialty: 'Khoa Nội',
-        hospital: 'Cơ sở Quận 3',
-        status: 'Hoàn thành',
-        diagnosis: 'Trào ngược dạ dày thực quản (GERD). Cần điều chỉnh chế độ ăn uống, tránh đồ cay nóng và ăn khuya.',
-        prescription: [
-            { name: 'Omeprazole 20mg', quantity: '14 Viên', usage: 'Uống 1 viên trước ăn sáng 30 phút' },
-            { name: 'Motilium-M 10mg', quantity: '20 Viên', usage: 'Uống trước bữa ăn 15 phút' }
-        ]
-    },
-    {
-        id: 'AP-2025-0810',
-        date: '10/08/2025',
-        time: '10:30 AM',
-        doctor: 'ThS. BS Phạm Văn C',
-        specialty: 'Da liễu',
-        hospital: 'Cơ sở Quận 1',
-        status: 'Đã hủy',
-        diagnosis: null,
-        prescription: []
-    }
-];
+import { Calendar, Clock, MapPin, User, FileText, Pill, ChevronDown, ChevronUp, CheckCircle, AlertCircle, X, Star, Trash2 } from 'lucide-react';
 
 export default function PatientHistory() {
+    // 1. STATE QUẢN LÝ DỮ LIỆU LỊCH SỬ
+    const [historyData, setHistoryData] = useState([
+        {
+            id: 'AP-2026-0320', // Ca sắp tới
+            date: '20/03/2026',
+            time: '08:00 AM',
+            doctor: 'BS. Lê Viết D',
+            specialty: 'Khoa Tổng quát',
+            hospital: 'Cơ sở Quận 1',
+            status: 'Chờ khám',
+            diagnosis: null,
+            prescription: [],
+            isReviewed: false
+        },
+        {
+            id: 'AP-2026-0315',
+            date: '15/03/2026',
+            time: '09:30 AM',
+            doctor: 'BS. Trần Thu Hà',
+            specialty: 'Nhi khoa',
+            hospital: 'Cơ sở Quận 1',
+            status: 'Hoàn thành',
+            diagnosis: 'Viêm họng cấp, sốt nhẹ. Cần theo dõi thêm trong 3 ngày và tái khám nếu triệu chứng không giảm.',
+            prescription: [
+                { name: 'Paracetamol 500mg', quantity: '10 Viên', usage: 'Uống sau ăn sáng/tối' },
+                { name: 'Amoxicillin 500mg', quantity: '15 Viên', usage: 'Uống 3 lần/ngày (8h cách nhau)' }
+            ],
+            isReviewed: false
+        },
+        {
+            id: 'AP-2025-1102',
+            date: '02/11/2025',
+            time: '14:00 PM',
+            doctor: 'PGS. TS. Nguyễn Văn A',
+            specialty: 'Khoa Nội',
+            hospital: 'Cơ sở Quận 3',
+            status: 'Hoàn thành',
+            diagnosis: 'Trào ngược dạ dày thực quản (GERD). Cần điều chỉnh chế độ ăn uống, tránh đồ cay nóng và ăn khuya.',
+            prescription: [
+                { name: 'Omeprazole 20mg', quantity: '14 Viên', usage: 'Uống 1 viên trước ăn sáng 30 phút' },
+                { name: 'Motilium-M 10mg', quantity: '20 Viên', usage: 'Uống trước bữa ăn 15 phút' }
+            ],
+            isReviewed: true
+        },
+        {
+            id: 'AP-2025-0810',
+            date: '10/08/2025',
+            time: '10:30 AM',
+            doctor: 'ThS. BS Phạm Văn C',
+            specialty: 'Da liễu',
+            hospital: 'Cơ sở Quận 1',
+            status: 'Đã hủy',
+            diagnosis: null,
+            prescription: [],
+            isReviewed: false
+        }
+    ]);
+
     const [expandedId, setExpandedId] = useState(historyData[0].id);
+
+    // 2. STATE CHO MODAL HỦY LỊCH
+    const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+    const [visitToCancel, setVisitToCancel] = useState(null);
+
+    // 3. STATE CHO MODAL ĐÁNH GIÁ (REVIEW)
+    const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+    const [visitToReview, setVisitToReview] = useState(null);
+    const [rating, setRating] = useState(5);
+    const [reviewComment, setReviewComment] = useState('');
 
     const toggleExpand = (id) => {
         setExpandedId(expandedId === id ? null : id);
+    };
+
+    // --- HÀM XỬ LÝ MOCK ACTIONS ---
+
+    // Hủy lịch
+    const openCancelModal = (visit) => {
+        setVisitToCancel(visit);
+        setIsCancelModalOpen(true);
+    };
+
+    const confirmCancel = () => {
+        setHistoryData(historyData.map(v => v.id === visitToCancel.id ? { ...v, status: 'Đã hủy' } : v));
+        setIsCancelModalOpen(false);
+        setVisitToCancel(null);
+    };
+
+    // Đánh giá
+    const openReviewModal = (visit) => {
+        setVisitToReview(visit);
+        setRating(5);
+        setReviewComment('');
+        setIsReviewModalOpen(true);
+    };
+
+    const submitReview = (e) => {
+        e.preventDefault();
+        setHistoryData(historyData.map(v => v.id === visitToReview.id ? { ...v, isReviewed: true } : v));
+        setIsReviewModalOpen(false);
+        setVisitToReview(null);
+    };
+
+    // --- HELPER DỊCH MÀU TRẠNG THÁI ---
+    const getStatusStyle = (status) => {
+        switch (status) {
+            case 'Hoàn thành': return 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100';
+            case 'Chờ khám': return 'bg-amber-50 text-amber-700 hover:bg-amber-100';
+            case 'Đã hủy': return 'bg-red-50 text-red-700 hover:bg-red-100';
+            default: return 'bg-gray-50 text-gray-700 hover:bg-gray-100';
+        }
     };
 
     return (
@@ -58,7 +123,6 @@ export default function PatientHistory() {
 
             {/* Header */}
             <div className="bg-primary text-white py-12 px-8 relative overflow-hidden">
-                {/* Background Image & Overlay */}
                 <img
                     src="https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80"
                     alt="History Background"
@@ -74,7 +138,7 @@ export default function PatientHistory() {
             </div>
 
             {/* Main Content */}
-            <div className="flex-1 max-w-5xl mx-auto w-full px-8 py-10">
+            <div className="flex-1 max-w-5xl mx-auto w-full px-4 sm:px-8 py-10">
 
                 {/* Patient Summary Card */}
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col sm:flex-row items-center gap-6 mb-8 mt-[-80px] relative z-10">
@@ -91,36 +155,52 @@ export default function PatientHistory() {
                     </div>
                     <div className="text-center bg-gray-50 px-6 py-4 rounded-xl border border-gray-100 w-full sm:w-auto">
                         <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">TỔNG LƯỢT KHÁM</p>
-                        <p className="text-2xl font-bold text-primary">3</p>
+                        <p className="text-2xl font-bold text-primary">{historyData.filter(v => v.status === 'Hoàn thành').length}</p>
                     </div>
                 </div>
 
-                {/* List of Visits */}
+                {/* Danh sách ca khám */}
                 <div className="space-y-6">
-                    <h3 className="text-lg font-bold text-gray-800">Danh sách các lần khám</h3>
+                    <h3 className="text-lg font-bold text-gray-800">Danh sách các lần khám đã đăng ký</h3>
 
                     {historyData.map((visit) => {
                         const isExpanded = expandedId === visit.id;
                         const isCompleted = visit.status === 'Hoàn thành';
+                        const isPending = visit.status === 'Chờ khám';
+
+                        let StatusIcon = isCompleted ? CheckCircle : AlertCircle;
+                        if (isPending) StatusIcon = Clock;
 
                         return (
                             <div
                                 key={visit.id}
-                                className={`bg-white rounded-2xl border transition-all duration-300 ${isExpanded ? 'border-primary/30 shadow-md shadow-blue-500/10' : 'border-gray-100 shadow-sm hover:border-gray-200'} overflow-hidden`}
+                                className={`bg-white rounded-2xl border transition-all duration-300 ${isExpanded ? 'border-primary/30 shadow-md shadow-blue-500/10' : 'border-gray-100 shadow-sm hover:border-gray-200'} overflow-hidden relative group`}
                             >
+                                {/* Cảnh báo Cancel nếu là ca Chưa diễn ra */}
+                                {isPending && (
+                                    <div className="absolute top-0 right-0 p-4 z-10">
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); openCancelModal(visit); }}
+                                            className="bg-white/80 backdrop-blur-sm hover:bg-red-50 text-red-600 border border-red-200 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-1 shadow-sm"
+                                        >
+                                            <Trash2 className="w-3.5 h-3.5" /> Hủy lịch
+                                        </button>
+                                    </div>
+                                )}
+
                                 {/* Visit Header (Clickable) */}
                                 <div
                                     className="p-6 cursor-pointer flex flex-col md:flex-row gap-6 md:items-center justify-between"
                                     onClick={() => toggleExpand(visit.id)}
                                 >
-                                    <div className="flex items-start gap-5">
-                                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${isCompleted ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
-                                            {isCompleted ? <CheckCircle className="w-6 h-6" /> : <AlertCircle className="w-6 h-6" />}
+                                    <div className="flex items-start gap-5 w-full">
+                                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${isCompleted ? 'bg-emerald-50 text-emerald-600' : isPending ? 'bg-amber-50 text-amber-600' : 'bg-red-50 text-red-600'}`}>
+                                            <StatusIcon className="w-6 h-6" />
                                         </div>
-                                        <div>
+                                        <div className="flex-1 pr-16 sm:pr-0">
                                             <div className="flex items-center gap-3 mb-1">
                                                 <h4 className="font-bold text-gray-900 text-lg">{visit.date}</h4>
-                                                <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${isCompleted ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>
+                                                <span className={`px-2.5 py-1 rounded-full text-xs font-bold transition-colors ${getStatusStyle(visit.status)}`}>
                                                     {visit.status}
                                                 </span>
                                             </div>
@@ -134,63 +214,96 @@ export default function PatientHistory() {
 
                                     <div className="flex items-center justify-between md:justify-end border-t md:border-t-0 pt-4 md:pt-0 mt-2 md:mt-0">
                                         <span className="text-xs font-semibold text-gray-400 md:hidden">Mã ca: {visit.id}</span>
-                                        <button className="text-gray-400 hover:text-primary transition-colors p-2 bg-gray-50 rounded-full">
+                                        <button className="text-gray-400 group-hover:text-primary transition-colors p-2 bg-gray-50 rounded-full">
                                             {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
                                         </button>
                                     </div>
                                 </div>
 
                                 {/* Visit Details (Expandable) */}
-                                {isExpanded && visit.diagnosis && (
+                                {isExpanded && (
                                     <div className="px-6 pb-6 pt-2 border-t border-gray-50">
 
-                                        <div className="mt-4 mb-6">
-                                            <h5 className="flex items-center gap-2 text-sm font-bold text-gray-800 mb-3">
-                                                <FileText className="w-4 h-4 text-primary" />
-                                                Chẩn đoán của Bác sĩ
-                                            </h5>
-                                            <div className="bg-blue-50/50 border border-blue-100/50 p-4 rounded-xl text-sm text-gray-700 leading-relaxed font-medium">
-                                                {visit.diagnosis}
-                                            </div>
-                                        </div>
-
-                                        {visit.prescription && visit.prescription.length > 0 && (
-                                            <div>
-                                                <h5 className="flex items-center gap-2 text-sm font-bold text-gray-800 mb-3">
-                                                    <Pill className="w-4 h-4 text-primary" />
-                                                    Đơn thuốc chỉ định
-                                                </h5>
-                                                <div className="border border-gray-100 rounded-xl overflow-hidden">
-                                                    <table className="min-w-full divide-y divide-gray-100">
-                                                        <thead className="bg-gray-50/80">
-                                                            <tr>
-                                                                <th scope="col" className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider w-1/3">Tên thuốc</th>
-                                                                <th scope="col" className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider w-1/4">Số lượng</th>
-                                                                <th scope="col" className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Cách dùng</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody className="bg-white divide-y divide-gray-100">
-                                                            {visit.prescription.map((med, idx) => (
-                                                                <tr key={idx} className="hover:bg-gray-50/50 transition-colors">
-                                                                    <td className="px-4 py-3.5 whitespace-nowrap text-sm font-bold text-gray-900">{med.name}</td>
-                                                                    <td className="px-4 py-3.5 whitespace-nowrap text-sm font-medium text-gray-600">{med.quantity}</td>
-                                                                    <td className="px-4 py-3.5 text-sm font-medium text-gray-600">{med.usage}</td>
-                                                                </tr>
-                                                            ))}
-                                                        </tbody>
-                                                    </table>
-                                                </div>
+                                        {/* Nếu chưa khám hoặc bị hủy -> Hiển thị cảnh báo */}
+                                        {(!isCompleted) && (
+                                            <div className="text-sm font-medium text-gray-500 flex items-center gap-2 bg-gray-50 p-4 rounded-xl border border-gray-100">
+                                                <Clock className="w-4 h-4" />
+                                                {isPending ? 'Ca khám sắp diễn ra. Bạn có thể hủy trước lịch 24 giờ.' : 'Ca khám này đã bị hủy, không có hồ sơ bệnh án.'}
                                             </div>
                                         )}
 
-                                        <div className="flex justify-end gap-3 mt-6">
-                                            <button className="px-4 py-2 border border-gray-200 text-gray-700 rounded-lg text-sm font-semibold hover:bg-gray-50 transition-colors hidden sm:block">
-                                                Tải file PDF
-                                            </button>
-                                            <button className="px-5 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg text-sm font-bold transition-colors shadow-sm shadow-blue-500/20">
-                                                Đặt lịch tái khám
-                                            </button>
-                                        </div>
+                                        {/* Nếu đã khám -> Có chẩn đoán & đơn thuốc */}
+                                        {isCompleted && visit.diagnosis && (
+                                            <>
+                                                <div className="mt-4 mb-6">
+                                                    <h5 className="flex items-center gap-2 text-sm font-bold text-gray-800 mb-3">
+                                                        <FileText className="w-4 h-4 text-primary" />
+                                                        Chẩn đoán của Bác sĩ
+                                                    </h5>
+                                                    <div className="bg-blue-50/50 border border-blue-100/50 p-4 rounded-xl text-sm text-gray-700 leading-relaxed font-medium">
+                                                        {visit.diagnosis}
+                                                    </div>
+                                                </div>
+
+                                                {visit.prescription && visit.prescription.length > 0 && (
+                                                    <div>
+                                                        <h5 className="flex items-center gap-2 text-sm font-bold text-gray-800 mb-3">
+                                                            <Pill className="w-4 h-4 text-primary" />
+                                                            Đơn thuốc chỉ định
+                                                        </h5>
+                                                        <div className="border border-gray-100 rounded-xl overflow-hidden">
+                                                            <div className="overflow-x-auto">
+                                                                <table className="min-w-full divide-y divide-gray-100">
+                                                                    <thead className="bg-gray-50/80">
+                                                                        <tr>
+                                                                            <th scope="col" className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider w-1/3 text-nowrap">Tên thuốc</th>
+                                                                            <th scope="col" className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider w-1/4 text-nowrap">Số lượng</th>
+                                                                            <th scope="col" className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider min-w-[200px]">Cách dùng</th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody className="bg-white divide-y divide-gray-100">
+                                                                        {visit.prescription.map((med, idx) => (
+                                                                            <tr key={idx} className="hover:bg-gray-50/50 transition-colors">
+                                                                                <td className="px-4 py-3.5 whitespace-nowrap text-sm font-bold text-gray-900">{med.name}</td>
+                                                                                <td className="px-4 py-3.5 whitespace-nowrap text-sm font-medium text-gray-600">{med.quantity}</td>
+                                                                                <td className="px-4 py-3.5 text-sm font-medium text-gray-600">{med.usage}</td>
+                                                                            </tr>
+                                                                        ))}
+                                                                    </tbody>
+                                                                </table>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {/* Actions sau khám (Tái khám, PDF, Đánh giá) */}
+                                                <div className="flex flex-wrap sm:justify-end gap-3 mt-6 pt-4 border-t border-gray-50">
+
+                                                    {/* Nút đánh giá tuỳ state isReviewed */}
+                                                    {visit.isReviewed ? (
+                                                        <div className="flex items-center gap-1.5 px-4 py-2 bg-amber-50 text-amber-600 rounded-lg text-sm font-bold border border-amber-200">
+                                                            <Star className="w-4 h-4 fill-amber-500 text-amber-500" />
+                                                            Đã đánh giá
+                                                        </div>
+                                                    ) : (
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); openReviewModal(visit); }}
+                                                            className="flex items-center gap-1.5 px-4 py-2 bg-white hover:bg-amber-50 text-gray-600 hover:text-amber-600 border border-gray-200 hover:border-amber-200 rounded-lg text-sm font-bold transition-colors shadow-sm"
+                                                        >
+                                                            <Star className="w-4 h-4" />
+                                                            Đánh giá dịch vụ
+                                                        </button>
+                                                    )}
+
+                                                    <button className="px-4 py-2 border border-gray-200 text-gray-700 rounded-lg text-sm font-semibold hover:bg-gray-50 transition-colors shadow-sm hidden sm:block">
+                                                        Tải file PDF
+                                                    </button>
+                                                    <button className="px-5 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg text-sm font-bold transition-colors shadow-sm shadow-blue-500/20">
+                                                        Đặt lại lịch tái khám tương tự
+                                                    </button>
+                                                </div>
+                                            </>
+                                        )}
 
                                     </div>
                                 )}
@@ -200,6 +313,80 @@ export default function PatientHistory() {
                 </div>
 
             </div>
+
+            {/* --- MODAL HỦY LỊCH --- */}
+            {isCancelModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm">
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden text-center animate-fade-in-up">
+                        <div className="bg-red-50 p-6 flex flex-col items-center">
+                            <div className="w-16 h-16 bg-red-100 text-red-500 rounded-full flex items-center justify-center mb-4">
+                                <Trash2 className="w-8 h-8" />
+                            </div>
+                            <h3 className="text-xl font-bold text-gray-900">Xác nhận hủy lịch</h3>
+                            <p className="text-gray-500 text-sm mt-1">Phòng Khám Xanh rất tiếc vì bạn không thể tới khám.</p>
+                        </div>
+                        <div className="p-6">
+                            <div className="text-left bg-gray-50 p-4 rounded-xl border border-gray-100 mb-6">
+                                <p className="text-sm font-bold text-gray-900 line-clamp-1">{visitToCancel?.doctor}</p>
+                                <p className="text-xs text-gray-500 mt-1"><Clock className="w-3.5 h-3.5 inline text-gray-400 mr-1" /> {visitToCancel?.time} | {visitToCancel?.date}</p>
+                            </div>
+                            <div className="flex gap-3">
+                                <button onClick={() => setIsCancelModalOpen(false)} className="px-4 py-2 flex-1 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 font-bold rounded-xl text-sm transition-colors">Quay lại</button>
+                                <button onClick={confirmCancel} className="px-4 py-2 flex-1 bg-red-600 hover:bg-red-700 text-white shadow-sm shadow-red-500/20 font-bold rounded-xl text-sm transition-colors">Vâng, Hủy hẹn</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* --- MODAL ĐÁNH GIÁ DỊCH VỤ --- */}
+            {isReviewModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm">
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-fade-in-up relative">
+                        <button onClick={() => setIsReviewModalOpen(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 bg-gray-100 rounded-full p-1"><X className="w-5 h-5" /></button>
+
+                        <div className="p-6">
+                            <div className="text-center mb-6">
+                                <h3 className="text-xl font-bold text-gray-900">Đánh giá Trải nghiệm</h3>
+                                <p className="text-gray-500 text-sm mt-1">Góp ý của bạn giúp Phòng khám cải thiện dịch vụ tốt hơn.</p>
+                            </div>
+
+                            <form onSubmit={submitReview}>
+                                <div className="bg-blue-50/50 border border-blue-100 rounded-xl p-4 flex flex-col items-center justify-center gap-2 mb-6 text-center">
+                                    <span className="text-xs font-bold text-blue-600 uppercase tracking-wide">Mức độ hài lòng</span>
+                                    <div className="flex items-center gap-1 cursor-pointer">
+                                        {[1, 2, 3, 4, 5].map((star) => (
+                                            <Star
+                                                key={star}
+                                                className={`w-8 h-8 transition-colors ${rating >= star ? 'fill-amber-400 text-amber-400' : 'text-gray-300'}`}
+                                                onClick={() => setRating(star)}
+                                            />
+                                        ))}
+                                    </div>
+                                    <span className="text-sm font-semibold text-gray-600 mt-1">
+                                        {rating === 5 ? 'Tuyệt vời!' : rating === 4 ? 'Tốt' : rating === 3 ? 'Bình thường' : rating === 2 ? 'Kém' : 'Cực kỳ tệ'}
+                                    </span>
+                                </div>
+
+                                <div className="space-y-2 mb-6">
+                                    <label className="text-sm font-semibold text-gray-700">Chia sẻ thêm (Tùy chọn)</label>
+                                    <textarea
+                                        rows="3"
+                                        value={reviewComment}
+                                        onChange={(e) => setReviewComment(e.target.value)}
+                                        placeholder="Bác sĩ nhiệt tình, phòng khám sạch sẽ..."
+                                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none resize-none"
+                                    ></textarea>
+                                </div>
+
+                                <button type="submit" className="w-full py-3 bg-primary hover:bg-primary-dark text-white font-bold rounded-xl transition-colors shadow-sm shadow-blue-500/20">
+                                    Gửi Đánh Giá
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <Footer />
         </div>
