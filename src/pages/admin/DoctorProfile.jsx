@@ -1,23 +1,62 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { User, Mail, Phone, MapPin, Award, BookOpen, Clock, Camera, Save, Star, CheckCircle, Loader2 } from 'lucide-react';
+import axios from 'axios';
 
 export default function DoctorProfile() {
     const [activeTab, setActiveTab] = useState('personal');
 
-    // Mock Actions State
+    const [profile, setProfile] = useState({
+        fullName: '',
+        specializationName: '',
+        phoneNumber: '',
+        email: '',
+        biography: '',
+        education: '',
+        experienceYears: 0
+    });
+    const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [showToast, setShowToast] = useState(false);
+
+    useEffect(() => {
+        const token = localStorage.getItem('token');
+        if (token) {
+            axios.get('http://localhost:8083/api/v1/doctors/profile', {
+                headers: { Authorization: `Bearer ${token}` }
+            })
+                .then(res => {
+                    setProfile(prev => ({ ...prev, ...res.data }));
+                    setIsLoading(false);
+                })
+                .catch(err => {
+                    console.error("Lỗi lấy thông tin:", err);
+                    setIsLoading(false);
+                });
+        }
+    }, []);
 
     const handleSave = (e) => {
         e?.preventDefault();
         setIsSaving(true);
-        // Giả lập call API 800ms
-        setTimeout(() => {
-            setIsSaving(false);
-            setShowToast(true);
-            setTimeout(() => setShowToast(false), 3000);
-        }, 800);
+        const token = localStorage.getItem('token');
+        axios.put('http://localhost:8083/api/v1/doctors/profile', profile, {
+            headers: { Authorization: `Bearer ${token}` }
+        })
+            .then(res => {
+                setProfile(prev => ({ ...prev, ...res.data }));
+                setIsSaving(false);
+                setShowToast(true);
+                setTimeout(() => setShowToast(false), 3000);
+            })
+            .catch(err => {
+                console.error("Lỗi cập nhật:", err);
+                setIsSaving(false);
+            });
     };
+
+    if (isLoading) {
+        return <div className="p-8 flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
+    }
 
     return (
         <div className="max-w-4xl space-y-6 relative">
@@ -43,18 +82,17 @@ export default function DoctorProfile() {
             </div>
 
             <div className="flex flex-col md:flex-row gap-8 items-start">
-
                 {/* Sidebar Nav */}
                 <div className="w-full md:w-72 bg-white rounded-2xl shadow-sm border border-gray-100 p-4 shrink-0">
                     <div className="flex flex-col items-center p-4 border-b border-gray-100 mb-4">
                         <div className="relative group cursor-pointer mb-4">
-                            <img src="https://ui-avatars.com/api/?name=Thu+Ha&background=1E6BFF&color=fff&size=200" alt="Avatar" className="w-24 h-24 rounded-full object-cover shadow-sm" />
+                            <img src={`https://ui-avatars.com/api/?name=${profile.fullName || 'BS'}&background=1E6BFF&color=fff&size=200`} alt="Avatar" className="w-24 h-24 rounded-full object-cover shadow-sm" />
                             <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                                 <Camera className="w-6 h-6 text-white" />
                             </div>
                         </div>
-                        <h3 className="font-bold text-gray-900 text-lg">BS. Trần Thu Hà</h3>
-                        <span className="text-xs font-bold text-primary bg-blue-50 px-2.5 py-1 rounded-full mt-2">Nhi khoa</span>
+                        <h3 className="font-bold text-gray-900 text-lg">{profile.fullName || 'Chưa cập nhật'}</h3>
+                        <span className="text-xs font-bold text-primary bg-blue-50 px-2.5 py-1 rounded-full mt-2">{profile.specializationName || 'Khoa Nội'}</span>
                         <div className="flex items-center gap-1 text-sm font-medium text-amber-500 mt-2">
                             <Star className="w-4 h-4 fill-amber-500" />
                             4.9 <span className="text-gray-400 font-normal">(128 đánh giá)</span>
@@ -99,20 +137,20 @@ export default function DoctorProfile() {
                                         <label className="text-sm font-semibold text-gray-700">Họ và tên / Chức danh</label>
                                         <div className="relative">
                                             <User className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                                            <input required type="text" defaultValue="BS. Trần Thu Hà" className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none" />
+                                            <input required type="text" value={profile.fullName || ''} onChange={e => setProfile({ ...profile, fullName: e.target.value })} className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none" />
                                         </div>
                                     </div>
 
                                     <div className="space-y-2">
                                         <label className="text-sm font-semibold text-gray-700">Chuyên khoa</label>
-                                        <input type="text" disabled defaultValue="Nhi khoa" className="w-full px-4 py-3 bg-gray-100 border border-gray-200 rounded-xl text-sm font-medium text-gray-500 cursor-not-allowed" />
+                                        <input type="text" disabled value={profile.specializationName || ''} className="w-full px-4 py-3 bg-gray-100 border border-gray-200 rounded-xl text-sm font-medium text-gray-500 cursor-not-allowed" />
                                     </div>
 
                                     <div className="space-y-2">
                                         <label className="text-sm font-semibold text-gray-700">Số điện thoại nghiệp vụ</label>
                                         <div className="relative">
                                             <Phone className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                                            <input required type="tel" defaultValue="0988 123 456" className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none" />
+                                            <input required type="tel" value={profile.phoneNumber || ''} onChange={e => setProfile({ ...profile, phoneNumber: e.target.value })} className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none" />
                                         </div>
                                     </div>
 
@@ -120,17 +158,13 @@ export default function DoctorProfile() {
                                         <label className="text-sm font-semibold text-gray-700">Email công việc</label>
                                         <div className="relative">
                                             <Mail className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                                            <input required type="email" defaultValue="dr.thuha@phongkhamxanh.vn" className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none" />
+                                            <input required type="email" value={profile.email || ''} onChange={e => setProfile({ ...profile, email: e.target.value })} className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none" />
                                         </div>
                                     </div>
                                 </div>
 
                                 <div className="pt-8 flex justify-end">
-                                    <button
-                                        type="submit"
-                                        disabled={isSaving}
-                                        className="bg-primary hover:bg-primary-dark disabled:bg-primary/70 text-white px-8 py-3 rounded-xl font-bold transition-all shadow-md shadow-primary/20 flex items-center justify-center gap-2 min-w-[170px]"
-                                    >
+                                    <button type="submit" disabled={isSaving} className="bg-primary hover:bg-primary-dark disabled:bg-primary/70 text-white px-8 py-3 rounded-xl font-bold transition-all shadow-md shadow-primary/20 flex items-center justify-center gap-2 min-w-[170px]">
                                         {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Save className="w-5 h-5" /> Lưu thay đổi</>}
                                     </button>
                                 </div>
@@ -148,28 +182,24 @@ export default function DoctorProfile() {
                                         <label className="text-sm font-semibold text-gray-700">Giới thiệu ngắn (Biography)</label>
                                         <div className="relative">
                                             <BookOpen className="w-5 h-5 text-gray-400 absolute left-3 top-4" />
-                                            <textarea rows="4" className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none resize-none" defaultValue="Bác sĩ CK I Trần Thu Hà là chuyên gia hàng đầu về Nhi khoa với hơn 15 năm kinh nghiệm. Bác sĩ từng công tác tại các bệnh viện tuyến đầu và có nhiều bài báo nghiên cứu về dinh dưỡng trẻ em."></textarea>
+                                            <textarea rows="4" value={profile.biography || ''} onChange={e => setProfile({ ...profile, biography: e.target.value })} className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none resize-none"></textarea>
                                         </div>
                                         <p className="text-xs text-gray-500 mt-1">Sẽ hiển thị trên trang danh sách bác sĩ để bệnh nhân đọc.</p>
                                     </div>
 
                                     <div className="space-y-2">
                                         <label className="text-sm font-semibold text-gray-700">Quá trình đào tạo & Bằng cấp</label>
-                                        <textarea rows="3" className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none resize-none" defaultValue="- Tốt nghiệp Bác sĩ Đa khoa - ĐH Y Dược TP.HCM (2005)&#13;&#10;- Tu nghiệp chuyên ngành Nhi khoa tại Pháp (2010)" />
+                                        <textarea rows="3" value={profile.education || ''} onChange={e => setProfile({ ...profile, education: e.target.value })} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none resize-none" />
                                     </div>
 
                                     <div className="space-y-2">
                                         <label className="text-sm font-semibold text-gray-700">Kinh nghiệm công tác (Năm)</label>
-                                        <input required type="number" defaultValue="15" className="w-32 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none" />
+                                        <input required type="number" value={profile.experienceYears || ''} onChange={e => setProfile({ ...profile, experienceYears: parseInt(e.target.value) || 0 })} className="w-32 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none" />
                                     </div>
                                 </div>
 
                                 <div className="pt-6 flex justify-end border-t border-gray-100 mt-6">
-                                    <button
-                                        type="submit"
-                                        disabled={isSaving}
-                                        className="bg-primary hover:bg-primary-dark disabled:bg-primary/70 text-white px-8 py-3 rounded-xl font-bold transition-all shadow-md shadow-primary/20 flex items-center justify-center gap-2 min-w-[180px]"
-                                    >
+                                    <button type="submit" disabled={isSaving} className="bg-primary hover:bg-primary-dark disabled:bg-primary/70 text-white px-8 py-3 rounded-xl font-bold transition-all shadow-md shadow-primary/20 flex items-center justify-center gap-2 min-w-[180px]">
                                         {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Save className="w-5 h-5" /> Cập nhật hồ sơ</>}
                                     </button>
                                 </div>
@@ -187,7 +217,6 @@ export default function DoctorProfile() {
                                         <p className="text-sm text-gray-600 mt-1">Thiết lập cấu hình mặc định khi bạn tạo các ca khám mới trên hệ thống.</p>
                                     </div>
                                 </div>
-
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mt-6">
                                     <div className="space-y-2">
                                         <label className="text-sm font-semibold text-gray-700">Thời lượng 1 ca khám mặc định (Phút)</label>
@@ -203,22 +232,15 @@ export default function DoctorProfile() {
                                         <input required type="text" defaultValue="300,000" className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none font-bold" />
                                     </div>
                                 </div>
-
                                 <div className="pt-6 flex justify-end border-t border-gray-100 mt-6">
-                                    <button
-                                        type="submit"
-                                        disabled={isSaving}
-                                        className="bg-primary hover:bg-primary-dark disabled:bg-primary/70 text-white px-8 py-3 rounded-xl font-bold transition-all shadow-md shadow-primary/20 flex items-center justify-center gap-2 min-w-[170px]"
-                                    >
+                                    <button type="submit" disabled={isSaving} className="bg-primary hover:bg-primary-dark disabled:bg-primary/70 text-white px-8 py-3 rounded-xl font-bold transition-all shadow-md shadow-primary/20 flex items-center justify-center gap-2 min-w-[170px]">
                                         {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Save className="w-5 h-5" /> Lưu thiết lập</>}
                                     </button>
                                 </div>
                             </form>
                         </div>
                     )}
-
                 </div>
-
             </div>
         </div>
     );

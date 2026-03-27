@@ -1,18 +1,38 @@
-import React, { useState } from 'react';
-import { Calendar, Clock, User, Phone, CheckCircle, XCircle, Search, Filter } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Calendar, Clock, User, Phone, CheckCircle, XCircle, Search, Filter, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import axios from 'axios';
 
 export default function Appointments() {
-    // Mock Data: Danh sách lịch khám hôm nay của Bác sĩ
-    const [appointments] = useState([
-        { id: 'LK-001', time: '08:00', patient: 'Nguyễn Văn A', phone: '0901234567', reason: 'Khám tổng quát, đau đầu', status: 'waiting' },
-        { id: 'LK-002', time: '08:30', patient: 'Trần Thị B', phone: '0912345678', reason: 'Tái khám dạ dày', status: 'completed' },
-        { id: 'LK-003', time: '09:00', patient: 'Lê Văn C', phone: '0987654321', reason: 'Tư vấn dinh dưỡng', status: 'cancelled' },
-        { id: 'LK-004', time: '09:45', patient: 'Phạm Thị D', phone: '0909090909', reason: 'Khám thai định kỳ', status: 'waiting' },
-        { id: 'LK-005', time: '10:30', patient: 'Hoàng Văn E', phone: '0933445566', reason: 'Đau xương khớp', status: 'waiting' },
-    ]);
-
+    const [appointments, setAppointments] = useState([]);
+    const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState('all');
+
+    useEffect(() => {
+        const token = localStorage.getItem('token');
+        if (token) {
+            axios.get('http://localhost:8083/api/v1/doctors/appointments/recent', {
+                headers: { Authorization: `Bearer ${token}` }
+            }).then(res => {
+                const fetched = res.data.map(dto => ({
+                    id: dto.id,
+                    time: dto.time || '--:--',
+                    patient: dto.patientName || 'Chưa cập nhật',
+                    phone: dto.phone || 'Chưa cập nhật',
+                    reason: dto.reason || 'Không rõ',
+                    status: dto.status === 'COMPLETED' ? 'completed' :
+                        dto.status === 'CANCELED' ? 'cancelled' : 'waiting'
+                }));
+                setAppointments(fetched);
+                setLoading(false);
+            }).catch(err => {
+                console.error("Lỗi lấy danh sách bệnh nhân:", err);
+                setLoading(false);
+            });
+        } else {
+            setLoading(false);
+        }
+    }, []);
 
     const filteredAppointments = appointments.filter(app => {
         if (filter === 'all') return true;
@@ -37,6 +57,10 @@ export default function Appointments() {
         }
     };
 
+    if (loading) {
+        return <div className="p-12 flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
+    }
+
     return (
         <div className="max-w-6xl space-y-6">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-2">
@@ -55,19 +79,17 @@ export default function Appointments() {
             </div>
 
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                {/* Thanh công cụ (Toolbar) */}
                 <div className="p-4 border-b border-gray-100 flex flex-col sm:flex-row gap-4 justify-between bg-gray-50/50">
                     <div className="flex gap-2 items-center">
                         <Filter className="w-4 h-4 text-gray-400" />
                         <select
                             value={filter}
                             onChange={(e) => setFilter(e.target.value)}
-                            className="text-sm border-none bg-transparent font-medium text-gray-700 focus:ring-0 cursor-pointer"
+                            className="text-sm border-none bg-transparent font-medium text-gray-700 focus:ring-0 cursor-pointer outline-none"
                         >
-                            <option value="all">Tất cả lịch khám ({appointments.length})</option>
+                            <option value="all">Tất cả ({appointments.length})</option>
                             <option value="waiting">Đang chờ ({appointments.filter(a => a.status === 'waiting').length})</option>
                             <option value="completed">Đã khám ({appointments.filter(a => a.status === 'completed').length})</option>
-                            <option value="cancelled">Đã hủy ({appointments.filter(a => a.status === 'cancelled').length})</option>
                         </select>
                     </div>
 
@@ -77,13 +99,12 @@ export default function Appointments() {
                         </div>
                         <input
                             type="text"
-                            className="block w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-primary focus:border-primary bg-white"
-                            placeholder="Tìm tên bệnh nhân, SĐT..."
+                            className="block w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-primary focus:border-primary bg-white outline-none"
+                            placeholder="Tìm bệnh nhân..."
                         />
                     </div>
                 </div>
 
-                {/* Danh sách Lịch khám */}
                 <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-100 text-left">
                         <thead className="bg-white">
@@ -125,6 +146,7 @@ export default function Appointments() {
                                             {app.status === 'waiting' && (
                                                 <Link
                                                     to="/admin/examination"
+                                                    state={{ appointmentId: app.id, patientName: app.patient }}
                                                     className="inline-flex items-center justify-center px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg text-sm font-bold transition-colors shadow-sm shadow-blue-500/20"
                                                 >
                                                     Tiếp nhận khám
@@ -132,7 +154,7 @@ export default function Appointments() {
                                             )}
                                             {app.status === 'completed' && (
                                                 <Link
-                                                    to="/admin/patients/records"
+                                                    to={`/admin/patients/records?patientId=${app.id}`}
                                                     className="inline-flex items-center justify-center px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg text-sm font-bold transition-colors"
                                                 >
                                                     Đã lưu hồ sơ
@@ -146,7 +168,7 @@ export default function Appointments() {
                                     <td colSpan="5" className="px-6 py-12 text-center text-gray-500">
                                         <div className="flex flex-col items-center justify-center">
                                             <Calendar className="w-12 h-12 text-gray-200 mb-3" />
-                                            <p className="font-medium">Không tìm thấy lịch khám nào.</p>
+                                            <p className="font-medium">Chưa có bệnh nhân nào đặt khám.</p>
                                         </div>
                                     </td>
                                 </tr>

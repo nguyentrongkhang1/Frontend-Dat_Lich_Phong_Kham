@@ -1,10 +1,15 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { PlusSquare, Mail, Lock, User, ArrowRight } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import axios from 'axios';
 
 export default function Auth() {
     const [isLogin, setIsLogin] = useState(true);
+    const [username, setUsername] = useState('dr.khang');
+    const [password, setPassword] = useState('khang123');
     const navigate = useNavigate();
+    const { login } = useAuth();
 
     return (
         <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4 font-sans relative overflow-hidden">
@@ -81,8 +86,10 @@ export default function Auth() {
                                     </div>
                                     <input
                                         type="text"
+                                        value={username}
+                                        onChange={e => setUsername(e.target.value)}
                                         className="block w-full pl-11 pr-4 py-3 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary bg-gray-50/50 hover:bg-gray-50 transition-all outline-none"
-                                        placeholder="example@mail.com"
+                                        placeholder="Tên đăng nhập"
                                     />
                                 </div>
                             </div>
@@ -102,6 +109,8 @@ export default function Auth() {
                                     </div>
                                     <input
                                         type="password"
+                                        value={password}
+                                        onChange={e => setPassword(e.target.value)}
                                         className="block w-full pl-11 pr-4 py-3 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary bg-gray-50/50 hover:bg-gray-50 transition-all outline-none"
                                         placeholder="••••••••"
                                     />
@@ -126,7 +135,20 @@ export default function Auth() {
 
                             <button
                                 type="button"
-                                onClick={() => navigate('/admin')}
+                                onClick={async () => {
+                                    if (isLogin) {
+                                        try {
+                                            const res = await axios.post('http://localhost:8083/api/auth/login', { username, password });
+                                            localStorage.setItem('token', res.data.token);
+                                            login({ name: res.data.username || username }, res.data.role || 'DOCTOR');
+                                            navigate('/admin');
+                                        } catch (e) {
+                                            alert("Đăng nhập thất bại: Sai tài khoản hoặc cấu hình mạng.");
+                                        }
+                                    } else {
+                                        navigate('/admin');
+                                    }
+                                }}
                                 className="w-full bg-primary hover:bg-primary-dark text-white font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-blue-500/30 flex items-center justify-center gap-2 mt-4 hover:shadow-blue-500/40 hover:-translate-y-0.5 active:translate-y-0"
                             >
                                 {isLogin ? 'Đăng nhập ngay' : 'Đăng ký ngay'}
