@@ -1,65 +1,46 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
-import { Search, MapPin, Star, Calendar, Clock, ArrowRight } from 'lucide-react';
-
-const doctors = [
-    {
-        id: 1,
-        name: 'BS. Trần Thu Hà',
-        specialty: 'Nhi khoa',
-        hospital: 'Cơ sở Quận 1',
-        rating: 4.9,
-        reviews: 128,
-        experience: '15 năm',
-        image: 'https://ui-avatars.com/api/?name=Thu+Ha&background=1E6BFF&color=fff&size=200',
-        availableSlots: ['08:00', '09:30', '14:00', '15:30']
-    },
-    {
-        id: 2,
-        name: 'PGS. TS. Nguyễn Văn A',
-        specialty: 'Khoa Nội',
-        hospital: 'Cơ sở Quận 3',
-        rating: 4.8,
-        reviews: 95,
-        experience: '20 năm',
-        image: 'https://ui-avatars.com/api/?name=Van+A&background=1E6BFF&color=fff&size=200',
-        availableSlots: ['13:00', '14:30', '16:00']
-    },
-    {
-        id: 3,
-        name: 'BS. CKII Lê Thị B',
-        specialty: 'Tim mạch',
-        hospital: 'Cơ sở Quận 1',
-        rating: 5.0,
-        reviews: 210,
-        experience: '18 năm',
-        image: 'https://ui-avatars.com/api/?name=Thi+B&background=1E6BFF&color=fff&size=200',
-        availableSlots: ['08:30', '10:00']
-    },
-    {
-        id: 4,
-        name: 'ThS. BS Phạm Văn C',
-        specialty: 'Da liễu',
-        hospital: 'Cơ sở Quận 1',
-        rating: 4.7,
-        reviews: 84,
-        experience: '10 năm',
-        image: 'https://ui-avatars.com/api/?name=Van+C&background=1E6BFF&color=fff&size=200',
-        availableSlots: ['09:00', '11:00', '15:00', '16:30']
-    }
-];
+import { Search, MapPin, Star, Calendar, Clock, ArrowRight, Loader2 } from 'lucide-react';
+import api from '../services/api';
 
 export default function DoctorList() {
     const [searchTerm, setSearchTerm] = useState('');
-    const [selectedSpecialty, setSelectedSpecialty] = useState('Tất cả');
+    const [selectedSpecialty, setSelectedSpecialty] = useState('');
+    const [specialties, setSpecialties] = useState([]);
+    const [doctors, setDoctors] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
 
-    // Lọc danh sách bác sĩ
-    const filteredDoctors = doctors.filter(doc => {
-        const matchName = doc.name.toLowerCase().includes(searchTerm.toLowerCase());
-        const matchSpecialty = selectedSpecialty === 'Tất cả' || doc.specialty === selectedSpecialty;
-        return matchName && matchSpecialty;
-    });
+    const fetchDoctors = () => {
+        setIsLoading(true);
+        const params = {};
+        if (searchTerm) params.name = searchTerm;
+        if (selectedSpecialty) params.specializationId = selectedSpecialty;
+
+        api.get('/api/v1/public/doctors', { params })
+            .then(res => {
+                setDoctors(res.data);
+                setIsLoading(false);
+            })
+            .catch(err => {
+                console.error("Lỗi lấy danh sách bác sĩ:", err);
+                setIsLoading(false);
+            });
+    };
+
+    useEffect(() => {
+        // Lấy danh sách chuyên khoa
+        api.get('/api/v1/public/specializations')
+            .then(res => setSpecialties(res.data))
+            .catch(err => console.error("Lỗi lấy chuyên khoa:", err));
+
+        fetchDoctors();
+    }, []);
+
+    const handleSearch = (e) => {
+        e.preventDefault();
+        fetchDoctors();
+    };
 
     return (
         <div className="min-h-screen flex flex-col font-sans bg-gray-50">
@@ -69,7 +50,7 @@ export default function DoctorList() {
             <div className="text-white py-20 px-8 relative overflow-hidden bg-primary">
                 {/* Background Image & Overlay */}
                 <img
-                    src="https://images.unsplash.com/photo-1551076805-e1869033e561?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80"
+                    src="/assets/images/hospital-hero.png"
                     alt="Doctors Background"
                     className="absolute inset-0 w-full h-full object-cover z-0"
                 />
@@ -98,6 +79,7 @@ export default function DoctorList() {
                             placeholder="Tên bác sĩ, triệu chứng, hoặc chuyên khoa..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && fetchDoctors()}
                             className="w-full pl-12 pr-4 py-3.5 bg-gray-50 border-none rounded-xl text-gray-900 focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-gray-400"
                         />
                     </div>
@@ -107,33 +89,36 @@ export default function DoctorList() {
                             onChange={(e) => setSelectedSpecialty(e.target.value)}
                             className="w-full px-4 py-3.5 bg-gray-50 border-none rounded-xl text-gray-900 focus:ring-2 focus:ring-primary/20 transition-all font-medium appearance-none cursor-pointer"
                         >
-                            <option value="Tất cả">Tất cả chuyên khoa</option>
-                            <option value="Nhi khoa">Nhi khoa</option>
-                            <option value="Khoa Nội">Khoa Nội</option>
-                            <option value="Tim mạch">Tim mạch</option>
-                            <option value="Da liễu">Da liễu</option>
+                            <option value="">Tất cả chuyên khoa</option>
+                            {specialties.map(spec => (
+                                <option key={spec.id} value={spec.id}>{spec.name}</option>
+                            ))}
                         </select>
                     </div>
-                    <button className="bg-primary hover:bg-primary-dark text-white px-8 py-3.5 rounded-xl font-bold transition-all shadow-md shadow-blue-500/25">
+                    <button 
+                        onClick={handleSearch}
+                        className="bg-primary hover:bg-primary-dark text-white px-8 py-3.5 rounded-xl font-bold transition-all shadow-md shadow-blue-500/25">
                         Tìm kiếm
                     </button>
                 </div>
 
                 {/* Doctor Grid */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {filteredDoctors.map(doctor => (
+                    {isLoading ? (
+                        <div className="col-span-full flex justify-center py-20"><Loader2 className="w-10 h-10 animate-spin text-primary" /></div>
+                    ) : doctors.map(doctor => (
                         <div key={doctor.id} className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 hover:shadow-xl hover:shadow-gray-200/50 transition-all group flex flex-col sm:flex-row gap-6">
 
                             {/* Avatar & Basic Info */}
                             <div className="flex flex-col items-center sm:items-start shrink-0">
-                                <img src={doctor.image} alt={doctor.name} className="w-28 h-28 object-cover rounded-2xl mb-4 shadow-sm" />
+                                <img src={doctor.avatarUrl || `https://ui-avatars.com/api/?name=${doctor.fullName}&background=1E6BFF&color=fff&size=200`} alt={doctor.fullName} className="w-28 h-28 object-cover rounded-2xl mb-4 shadow-sm" />
                                 <div className="text-center sm:text-left">
                                     <span className="inline-block px-3 py-1 bg-blue-50 text-primary rounded-full text-xs font-bold mb-2">
-                                        {doctor.specialty}
+                                        {doctor.specializationName}
                                     </span>
                                     <div className="flex items-center gap-1 text-sm font-medium text-amber-500 justify-center sm:justify-start">
                                         <Star className="w-4 h-4 fill-amber-500" />
-                                        {doctor.rating} <span className="text-gray-400 font-normal">({doctor.reviews})</span>
+                                        {doctor.rating || 5.0} <span className="text-gray-400 font-normal">({doctor.reviews || 0})</span>
                                     </div>
                                 </div>
                             </div>
@@ -141,15 +126,15 @@ export default function DoctorList() {
                             {/* Details & Actions */}
                             <div className="flex-1 flex flex-col">
                                 <div className="mb-4 text-center sm:text-left">
-                                    <h3 className="text-xl font-bold text-gray-900 group-hover:text-primary transition-colors cursor-pointer">{doctor.name}</h3>
+                                    <h3 className="text-xl font-bold text-gray-900 group-hover:text-primary transition-colors cursor-pointer">{doctor.fullName}</h3>
                                     <div className="flex flex-col gap-2 mt-3 text-sm text-gray-600">
                                         <div className="flex items-center gap-2 justify-center sm:justify-start">
                                             <MapPin className="w-4 h-4 text-gray-400" />
-                                            {doctor.hospital}
+                                            {doctor.hospital || 'Cơ sở Hệ thống'}
                                         </div>
                                         <div className="flex items-center gap-2 justify-center sm:justify-start">
                                             <Clock className="w-4 h-4 text-gray-400" />
-                                            Kinh nghiệm: {doctor.experience}
+                                            Kinh nghiệm: {doctor.experienceYears} năm
                                         </div>
                                     </div>
                                 </div>
@@ -157,7 +142,7 @@ export default function DoctorList() {
                                 <div className="mt-auto pt-4 border-t border-gray-100">
                                     <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 text-center sm:text-left">Lịch trống hôm nay</p>
                                     <div className="flex flex-wrap gap-2 mb-4 justify-center sm:justify-start">
-                                        {doctor.availableSlots.map((slot, index) => (
+                                        {(doctor.availableSlots || ['08:00', '10:00', '14:00']).map((slot, index) => (
                                             <button key={index} className="px-3 py-1.5 bg-gray-50 hover:bg-primary hover:text-white border border-gray-200 hover:border-primary rounded-lg text-sm font-medium transition-colors cursor-pointer text-gray-700">
                                                 {slot}
                                             </button>
@@ -176,7 +161,7 @@ export default function DoctorList() {
                     ))}
                 </div>
 
-                {filteredDoctors.length === 0 && (
+                {doctors.length === 0 && (
                     <div className="text-center py-20">
                         <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                             <Search className="w-8 h-8 text-gray-400" />

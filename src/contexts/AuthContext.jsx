@@ -19,20 +19,11 @@ export const AuthProvider = ({ children }) => {
     const logout = () => {
         setUser(null);
         setRole('GUEST');
-    };
-
-    // Hàm đổi role siêu tốc (dùng riêng cho chế độ test giao diện)
-    const switchRoleQuickly = (newRole) => {
-        setRole(newRole);
-        if (newRole === 'GUEST') {
-            setUser(null);
-        } else {
-            setUser({ name: `Test ${newRole}`, id: `mock-${newRole.toLowerCase()}` });
-        }
+        localStorage.removeItem('token');
     };
 
     return (
-        <AuthContext.Provider value={{ user, role, login, logout, switchRoleQuickly }}>
+        <AuthContext.Provider value={{ user, role, login, logout }}>
             {children}
         </AuthContext.Provider>
     );

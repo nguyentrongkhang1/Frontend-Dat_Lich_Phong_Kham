@@ -1,20 +1,20 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { User, Activity, FileText, Plus, Trash2, Save, CheckCircle2, AlertCircle, TestTube, Syringe, FileDigit, Stethoscope, Receipt } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '../../services/api';
 
 export default function DoctorExamination() {
     const location = useLocation();
     const navigate = useNavigate();
-    const { appointmentId, patientName } = location.state || {};
+    const { appointmentId, patientName, patientPhone, reason } = location.state || {};
 
     const [patientInfo] = useState({
         id: appointmentId ? `LK-${appointmentId}` : '#BN-2026-001',
-        name: patientName || 'Nguyễn Văn A',
-        dob: '15/05/1995',
-        phone: 'Chưa rõ',
-        gender: 'Nam',
-        reason: 'Đang chờ khám bệnh',
+        name: patientName || 'Bệnh nhân',
+        dob: 'Chưa cập nhật',
+        phone: patientPhone || 'Chưa cập nhật',
+        gender: 'Không xác định',
+        reason: reason || 'Đang chờ khám bệnh',
     });
 
     const [activeTab, setActiveTab] = useState('clinical');
@@ -69,7 +69,7 @@ export default function DoctorExamination() {
         }
 
         if (!appointmentId) {
-            alert("Lỗi: Không tìm thấy ID Lịch Hẹn. Bạn có vào đúng từ trang Lịch Khám không?");
+            alert("Lỗi: Không tìm thấy ID Lịch Hẹn.");
             return;
         }
 
@@ -83,19 +83,17 @@ export default function DoctorExamination() {
             }))
         };
 
-        const token = localStorage.getItem('token');
-        axios.post(`http://localhost:8083/api/v1/doctors/appointments/${appointmentId}/examine`, payload, {
-            headers: { Authorization: `Bearer ${token}` }
-        }).then(res => {
-            setIsSaved(true);
-            setTimeout(() => {
-                setIsSaved(false);
-                navigate('/admin/appointments');
-            }, 1000);
-        }).catch(err => {
-            console.error("Lỗi khi lưu bệnh án/đơn thuốc:", err);
-            alert("Đã xảy ra lỗi khi đồng bộ hồ sơ. Vui lòng thử lại.");
-        });
+        api.post(`/api/v1/doctors/appointments/${appointmentId}/examine`, payload)
+            .then(res => {
+                setIsSaved(true);
+                setTimeout(() => {
+                    setIsSaved(false);
+                    navigate('/admin/appointments');
+                }, 1000);
+            }).catch(err => {
+                console.error("Lỗi khi lưu bệnh án/đơn thuốc:", err);
+                alert("Đã xảy ra lỗi khi đồng bộ hồ sơ. Vui lòng thử lại.");
+            });
     };
 
     return (
@@ -110,7 +108,7 @@ export default function DoctorExamination() {
                 </div>
 
                 {selectedServices.length > 0 && (
-                    <div className="bg-purple-50 text-purple-700 px-4 py-2 rounded-lg font-bold flex items-center gap-2 border border-purple-100 shadow-sm animate-fade-in-up">
+                    <div className="bg-purple-50 text-purple-700 px-4 py-2 rounded-lg font-bold flex items-center gap-2 border border-purple-100 shadow-sm">
                         <Receipt className="w-5 h-5" />
                         <span>Phát sinh phí CLS: {totalServiceFee.toLocaleString()} đ</span>
                     </div>
@@ -121,21 +119,19 @@ export default function DoctorExamination() {
                 <div className="bg-amber-50 text-amber-700 p-4 rounded-xl border border-amber-200 mb-6 flex items-center gap-3">
                     <AlertCircle className="w-6 h-6 shrink-0" />
                     <div>
-                        <p className="font-bold">Cảnh báo: Bạn đang truy cập trực tiếp bằng URL.</p>
-                        <p className="text-sm">Hệ thống sẽ không thể lưu bệnh án nếu bạn không chọn bệnh nhân từ Danh sách Lịch Khám.</p>
+                        <p className="font-bold">Cảnh báo: Không có dữ liệu lịch hẹn.</p>
+                        <p className="text-sm">Vui lòng chọn từ danh sách bệnh nhân chờ khám.</p>
                     </div>
                 </div>
             )}
 
             <div className="flex flex-col lg:flex-row gap-6 items-start">
-                {/* Lệnh Sidebar */}
                 <div className="w-full lg:w-80 space-y-6 shrink-0 sticky top-6">
                     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 relative overflow-hidden">
                         <div className="absolute top-0 left-0 w-full h-2 bg-primary"></div>
                         <div className="flex items-center gap-4 mb-6 mt-2">
-                            <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center font-bold text-xl relative shrink-0">
+                            <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center font-bold text-xl shrink-0">
                                 {patientInfo.name.charAt(0)}
-                                <div className="absolute bottom-0 right-0 w-4 h-4 bg-emerald-500 border-2 border-white rounded-full"></div>
                             </div>
                             <div>
                                 <h2 className="text-lg font-bold text-gray-900 leading-tight">{patientInfo.name}</h2>
@@ -145,28 +141,22 @@ export default function DoctorExamination() {
 
                         <div className="space-y-4">
                             <div className="flex justify-between items-center border-b border-gray-50 pb-3">
-                                <span className="text-sm font-medium text-gray-500">Năm sinh</span>
-                                <span className="text-sm font-bold text-gray-800">{patientInfo.dob}</span>
+                                <span className="text-sm font-medium text-gray-500">Số điện thoại</span>
+                                <span className="text-sm font-bold text-gray-800">{patientInfo.phone}</span>
                             </div>
                             <div className="flex justify-between items-center border-b border-gray-50 pb-3">
                                 <span className="text-sm font-medium text-gray-500">Giới tính</span>
                                 <span className="text-sm font-bold text-gray-800">{patientInfo.gender}</span>
                             </div>
-                            <div className="flex justify-between items-center pb-1">
-                                <span className="text-sm font-medium text-gray-500">Điện thoại</span>
-                                <span className="text-sm font-bold text-gray-800">{patientInfo.phone}</span>
+                            <div className="flex justify-between items-center border-b border-gray-50 pb-3">
+                                <span className="text-sm font-medium text-gray-500">Năm sinh</span>
+                                <span className="text-sm font-bold text-gray-800">{patientInfo.dob}</span>
+                            </div>
+                            <div className="border-b border-gray-50 pb-3">
+                                <span className="text-sm font-medium text-gray-500 block mb-1">Lý do khám</span>
+                                <span className="text-sm text-gray-800">{patientInfo.reason}</span>
                             </div>
                         </div>
-                    </div>
-
-                    <div className="bg-amber-50 rounded-2xl border border-amber-100 p-6 shadow-sm">
-                        <div className="flex items-center gap-2 text-amber-700 font-bold mb-3">
-                            <AlertCircle className="w-5 h-5" />
-                            Lý do / Triệu chứng:
-                        </div>
-                        <p className="text-sm text-amber-900 leading-relaxed font-medium italic">
-                            "{patientInfo.reason}"
-                        </p>
                     </div>
                 </div>
 
@@ -187,7 +177,7 @@ export default function DoctorExamination() {
 
                     <div className="p-8 flex-1">
                         {activeTab === 'clinical' && (
-                            <div className="space-y-6 animate-in fade-in duration-300">
+                            <div className="space-y-6">
                                 <h3 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
                                     <FileDigit className="w-5 h-5 text-gray-400" /> Chẩn Đoán Lâm Sàng & Ghi Chú
                                 </h3>
@@ -198,14 +188,14 @@ export default function DoctorExamination() {
                                     </div>
                                     <div>
                                         <label className="block text-sm font-bold text-gray-700 mb-2">Lời dặn dò cho Bệnh nhân</label>
-                                        <textarea rows="5" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="VD: Uống nhiều nước ấm, súc miệng nước muối, tái khám sau 3 ngày nếu không đỡ..." className="w-full px-4 py-3.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary bg-gray-50/50 text-gray-900 text-sm outline-none transition-all resize-none leading-relaxed"></textarea>
+                                        <textarea rows="5" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="VD: Uống nhiều nước ấm..." className="w-full px-4 py-3.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary bg-gray-50/50 text-gray-900 text-sm outline-none transition-all resize-none leading-relaxed"></textarea>
                                     </div>
                                 </div>
                             </div>
                         )}
 
                         {activeTab === 'services' && (
-                            <div className="space-y-6 animate-in fade-in duration-300">
+                            <div className="space-y-6">
                                 <div className="flex justify-between items-end mb-6">
                                     <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                                         <TestTube className="w-5 h-5 text-purple-500" /> Chỉ Định Cận Lâm Sàng
@@ -228,7 +218,6 @@ export default function DoctorExamination() {
                                                         <h4 className={`font-bold text-sm ${isSelected ? 'text-purple-900' : 'text-gray-900'}`}>{service.name}</h4>
                                                         <span className="font-bold text-purple-600 text-sm">{service.price.toLocaleString()} đ</span>
                                                     </div>
-                                                    <span className="inline-block px-2 py-0.5 bg-gray-100 text-gray-500 text-xs font-semibold rounded-md mt-2">{service.category}</span>
                                                 </div>
                                             </div>
                                         );
@@ -238,58 +227,56 @@ export default function DoctorExamination() {
                         )}
 
                         {activeTab === 'prescription' && (
-                            <div className="space-y-6 animate-in fade-in duration-300">
+                            <div className="space-y-6">
                                 <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2 mb-6">
                                     <Syringe className="w-5 h-5 text-emerald-500" /> Kê Đơn Thuốc Điện Tử
                                 </h3>
                                 <form onSubmit={handleAddMedicine} className="bg-white p-5 rounded-xl border-2 border-emerald-100/60 mb-6 flex flex-col lg:flex-row gap-4 items-end shadow-sm">
-                                    <div className="flex-1 w-full relative">
-                                        <label className="block text-xs font-bold text-emerald-700/80 mb-1.5 uppercase tracking-wide">Tên thuốc</label>
-                                        <input type="text" required value={medInput.name} onChange={e => setMedInput({ ...medInput, name: e.target.value })} placeholder="VD: Paracetamol 500mg" className="w-full px-4 py-2.5 text-sm font-medium border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" />
+                                    <div className="flex-1 w-full">
+                                        <label className="block text-xs font-bold text-emerald-700/80 mb-1.5 uppercase">Tên thuốc</label>
+                                        <input type="text" required value={medInput.name} onChange={e => setMedInput({ ...medInput, name: e.target.value })} placeholder="VD: Paracetamol" className="w-full px-4 py-2 border border-gray-200 rounded-lg outline-none" />
                                     </div>
-                                    <div className="w-full lg:w-32 relative">
-                                        <label className="block text-xs font-bold text-emerald-700/80 mb-1.5 uppercase tracking-wide">Số lượng</label>
-                                        <input type="text" required value={medInput.quantity} onChange={e => setMedInput({ ...medInput, quantity: e.target.value })} placeholder="10 viên" className="w-full px-4 py-2.5 text-sm font-medium border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" />
+                                    <div className="w-32">
+                                        <label className="block text-xs font-bold text-emerald-700/80 mb-1.5 uppercase">Số lượng</label>
+                                        <input type="text" required value={medInput.quantity} onChange={e => setMedInput({ ...medInput, quantity: e.target.value })} placeholder="10" className="w-full px-4 py-2 border border-gray-200 rounded-lg outline-none text-center" />
                                     </div>
-                                    <div className="flex-1 w-full relative">
-                                        <label className="block text-xs font-bold text-emerald-700/80 mb-1.5 uppercase tracking-wide">Cách dùng</label>
-                                        <input type="text" required value={medInput.dosage} onChange={e => setMedInput({ ...medInput, dosage: e.target.value })} placeholder="Sáng 1, Tối 1 sau ăn" className="w-full px-4 py-2.5 text-sm font-medium border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" />
+                                    <div className="flex-1 w-full">
+                                        <label className="block text-xs font-bold text-emerald-700/80 mb-1.5 uppercase">Cách dùng</label>
+                                        <input type="text" required value={medInput.dosage} onChange={e => setMedInput({ ...medInput, dosage: e.target.value })} placeholder="Sáng 1, Tối 1" className="w-full px-4 py-2 border border-gray-200 rounded-lg outline-none" />
                                     </div>
-                                    <button type="submit" className="w-full lg:w-32 h-[42px] bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-bold rounded-lg transition-colors flex items-center justify-center gap-2 shadow-md shadow-emerald-500/20">
-                                        <Plus className="w-4 h-4" /> Bổ sung
+                                    <button type="submit" className="px-6 py-2 bg-emerald-500 text-white font-bold rounded-lg hover:bg-emerald-600 transition-colors">
+                                        Thêm
                                     </button>
                                 </form>
 
-                                <div className="border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                                <div className="border border-gray-200 rounded-xl overflow-hidden">
                                     <table className="min-w-full divide-y divide-gray-200">
-                                        <thead className="bg-gray-50/80">
+                                        <thead className="bg-gray-50">
                                             <tr>
-                                                <th className="px-5 py-3.5 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Tên thuốc</th>
-                                                <th className="px-5 py-3.5 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Số lượng</th>
-                                                <th className="px-5 py-3.5 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Cách dùng</th>
-                                                <th className="px-5 py-3.5 text-right w-16"></th>
+                                                <th className="px-5 py-3 text-left text-xs font-bold text-gray-500 uppercase">Tên thuốc</th>
+                                                <th className="px-5 py-3 text-left text-xs font-bold text-gray-500 uppercase">Số lượng</th>
+                                                <th className="px-5 py-3 text-left text-xs font-bold text-gray-500 uppercase">Cách dùng</th>
+                                                <th className="px-5 py-3 text-right"></th>
                                             </tr>
                                         </thead>
                                         <tbody className="bg-white divide-y divide-gray-100">
-                                            {medicines.length === 0 ? (
-                                                <tr>
-                                                    <td colSpan="4" className="px-5 py-12 text-center text-gray-400">
-                                                        <Syringe className="w-10 h-10 mb-3 mx-auto opacity-20" />
-                                                        <p className="text-sm font-semibold">Chưa có thuốc nào được kê trong đơn.</p>
-                                                    </td>
-                                                </tr>
-                                            ) : medicines.map((med) => (
-                                                <tr key={med.id} className="hover:bg-gray-50/50 transition-colors group">
+                                            {medicines.map((med) => (
+                                                <tr key={med.id}>
                                                     <td className="px-5 py-4 text-sm font-bold text-gray-900">{med.name}</td>
-                                                    <td className="px-5 py-4 text-sm font-bold text-emerald-600 bg-emerald-50/30">{med.quantity}</td>
+                                                    <td className="px-5 py-4 text-sm font-medium text-gray-600">{med.quantity}</td>
                                                     <td className="px-5 py-4 text-sm font-medium text-gray-600">{med.dosage}</td>
                                                     <td className="px-5 py-4 text-right">
-                                                        <button onClick={() => handleRemoveMedicine(med.id)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100">
+                                                        <button onClick={() => handleRemoveMedicine(med.id)} className="text-red-500 p-1 hover:bg-red-50 rounded">
                                                             <Trash2 className="w-4 h-4" />
                                                         </button>
                                                     </td>
                                                 </tr>
                                             ))}
+                                            {medicines.length === 0 && (
+                                                <tr>
+                                                    <td colSpan="4" className="text-center py-8 text-gray-400">Chưa có thuốc được kê</td>
+                                                </tr>
+                                            )}
                                         </tbody>
                                     </table>
                                 </div>
@@ -297,18 +284,18 @@ export default function DoctorExamination() {
                         )}
                     </div>
 
-                    <div className="bg-gray-50/80 p-6 border-t border-gray-100 flex items-center justify-between">
+                    <div className="bg-gray-50 p-6 border-t border-gray-100 flex items-center justify-between">
                         <div className="flex-1">
                             {isSaved && (
-                                <span className="inline-flex items-center gap-2 text-emerald-600 font-bold bg-emerald-50 border border-emerald-100 px-4 py-2 rounded-lg animate-fade-in-up shadow-sm">
-                                    <CheckCircle2 className="w-5 h-5" /> Đã lưu Bệnh án thành công! Hệ thống đang chuyển trang...
+                                <span className="text-emerald-600 font-bold bg-emerald-50 px-4 py-2 rounded-lg border border-emerald-100">
+                                    Đã lưu thành công!
                                 </span>
                             )}
                         </div>
                         <button
                             onClick={handleSaveExamination}
                             disabled={!appointmentId}
-                            className={`px-10 py-3.5 rounded-xl font-bold transition-all shadow-lg flex items-center gap-2 text-base ${!appointmentId ? 'bg-gray-300 text-gray-500 cursor-not-allowed hidden' : 'bg-primary hover:bg-primary-dark text-white shadow-blue-500/30'}`}
+                            className={`px-10 py-3.5 rounded-xl font-bold transition-all shadow-lg flex items-center gap-2 ${!appointmentId ? 'bg-gray-300 text-gray-500 hidden' : 'bg-primary hover:bg-primary-dark text-white'}`}
                         >
                             <Save className="w-5 h-5" />
                             Hoàn Tất Khám Bệnh

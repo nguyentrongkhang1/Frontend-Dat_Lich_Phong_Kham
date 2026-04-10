@@ -2,14 +2,44 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { PlusSquare, Mail, Lock, User, ArrowRight } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import axios from 'axios';
+import api from '../services/api';
 
 export default function Auth() {
     const [isLogin, setIsLogin] = useState(true);
-    const [username, setUsername] = useState('dr.khang');
-    const [password, setPassword] = useState('khang123');
+    const [username, setUsername] = useState('');
+    const [password, setPassword] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState('');
     const navigate = useNavigate();
     const { login } = useAuth();
+
+    const handleAuth = async (e) => {
+        e.preventDefault();
+        setError('');
+        setIsLoading(true);
+
+        try {
+            if (isLogin) {
+                const res = await api.post('/api/auth/login', { username, password });
+                localStorage.setItem('token', res.data.token);
+                const userRole = res.data.role || 'DOCTOR';
+                login({ name: res.data.username || username }, userRole);
+
+                if (userRole === 'ADMIN' || userRole === 'DOCTOR') {
+                    navigate('/admin');
+                } else {
+                    navigate('/');
+                }
+            } else {
+                // Hiện tại chưa có endpoint register hoàn chỉnh, chuyển hướng tạm thời hoặc thông báo
+                alert("Tính năng đăng ký đang được bảo trì. Vui lòng liên hệ Admin.");
+                setIsLoading(false);
+            }
+        } catch (e) {
+            setError(e.response?.data?.message || "Đăng nhập thất bại: Sai tài khoản hoặc mật khẩu.");
+            setIsLoading(false);
+        }
+    };
 
     return (
         <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4 font-sans relative overflow-hidden">
@@ -61,7 +91,13 @@ export default function Auth() {
                             {isLogin ? 'Vui lòng nhập thông tin để truy cập.' : 'Điền thông tin bên dưới để đăng ký.'}
                         </p>
 
-                        <form className="space-y-5">
+                        {error && (
+                            <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm mb-5 border border-red-100 animate-shake">
+                                {error}
+                            </div>
+                        )}
+
+                        <form className="space-y-5" onSubmit={handleAuth}>
                             {!isLogin && (
                                 <div className="space-y-2 relative group">
                                     <label className="text-sm font-semibold text-gray-700">Họ và tên</label>
@@ -134,25 +170,12 @@ export default function Auth() {
                             )}
 
                             <button
-                                type="button"
-                                onClick={async () => {
-                                    if (isLogin) {
-                                        try {
-                                            const res = await axios.post('http://localhost:8083/api/auth/login', { username, password });
-                                            localStorage.setItem('token', res.data.token);
-                                            login({ name: res.data.username || username }, res.data.role || 'DOCTOR');
-                                            navigate('/admin');
-                                        } catch (e) {
-                                            alert("Đăng nhập thất bại: Sai tài khoản hoặc cấu hình mạng.");
-                                        }
-                                    } else {
-                                        navigate('/admin');
-                                    }
-                                }}
-                                className="w-full bg-primary hover:bg-primary-dark text-white font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-blue-500/30 flex items-center justify-center gap-2 mt-4 hover:shadow-blue-500/40 hover:-translate-y-0.5 active:translate-y-0"
+                                type="submit"
+                                disabled={isLoading}
+                                className="w-full bg-primary hover:bg-primary-dark disabled:bg-primary/70 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-blue-500/30 flex items-center justify-center gap-2 mt-4 hover:shadow-blue-500/40 hover:-translate-y-0.5 active:translate-y-0"
                             >
-                                {isLogin ? 'Đăng nhập ngay' : 'Đăng ký ngay'}
-                                <ArrowRight className="w-5 h-5" />
+                                {isLoading ? 'Đang xử lý...' : (isLogin ? 'Đăng nhập ngay' : 'Đăng ký ngay')}
+                                {!isLoading && <ArrowRight className="w-5 h-5" />}
                             </button>
                         </form>
 

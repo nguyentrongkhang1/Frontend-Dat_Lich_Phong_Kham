@@ -1,9 +1,18 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
+import api from '../services/api';
 
 export default function Home() {
+    const [doctorCount, setDoctorCount] = useState(null);
+
+    useEffect(() => {
+        api.get('/api/v1/public/doctors')
+            .then(res => setDoctorCount(res.data.length))
+            .catch(err => console.error("Error fetching stats:", err));
+    }, []);
+
     return (
         <div className="min-h-screen flex flex-col font-sans bg-gray-50">
             <Navbar />
@@ -12,7 +21,7 @@ export default function Home() {
             <section className="relative overflow-hidden pt-20 pb-28 text-white bg-primary">
                 {/* Background Image & Overlay */}
                 <img
-                    src="https://images.unsplash.com/photo-1516549655169-df83a0774514?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80"
+                    src="/assets/images/hospital-hero.png"
                     alt="Background"
                     className="absolute inset-0 w-full h-full object-cover z-0"
                 />
@@ -32,12 +41,12 @@ export default function Home() {
                             Giảm thiểu thời gian chờ đợi, tối ưu quy trình thăm khám của bạn.
                         </p>
                         <div className="flex items-center gap-4">
-                            <Link to="/book" className="bg-white text-primary px-8 py-3 rounded-full font-semibold hover:bg-gray-50 transition-colors shadow-lg shadow-blue-500/30">
+                            <Link to="/doctors" className="bg-white text-primary px-8 py-3 rounded-full font-semibold hover:bg-gray-50 transition-colors shadow-lg shadow-blue-500/30">
+                                XEM DANH SÁCH BÁC SĨ
+                            </Link>
+                            <Link to="/book" className="px-8 py-3 rounded-full font-semibold border-2 border-white/30 hover:bg-white/10 transition-colors">
                                 ĐẶT LỊCH NGAY
                             </Link>
-                            <button className="px-8 py-3 rounded-full font-semibold border-2 border-white/30 hover:bg-white/10 transition-colors">
-                                TÌM HIỂU THÊM
-                            </button>
                         </div>
                     </div>
                 </div>
@@ -47,12 +56,12 @@ export default function Home() {
             <div className="max-w-7xl mx-auto px-8 relative z-20 -mt-10 mb-16 hidden md:block">
                 <div className="bg-white rounded-2xl shadow-xl shadow-gray-200/50 p-6 flex justify-between divide-x divide-gray-100">
                     <div className="px-6 flex-1 text-center">
-                        <div className="font-bold text-3xl text-primary mb-1">50+</div>
+                        <div className="font-bold text-3xl text-primary mb-1">{doctorCount !== null ? `${doctorCount}+` : '...'}</div>
                         <div className="text-gray-500 text-sm font-medium">Bác sĩ chuyên khoa</div>
                     </div>
                     <div className="px-6 flex-1 text-center">
-                        <div className="font-bold text-3xl text-primary mb-1">20,000+</div>
-                        <div className="text-gray-500 text-sm font-medium">Lượt khám mỗi năm</div>
+                        <div className="font-bold text-3xl text-primary mb-1">100+</div>
+                        <div className="text-gray-500 text-sm font-medium">Bệnh nhân tin tưởng</div>
                     </div>
                     <div className="px-6 flex-1 text-center">
                         <div className="font-bold text-3xl text-primary mb-1">100%</div>
@@ -108,7 +117,7 @@ export default function Home() {
                 {/* Right: Hospital Real Photo Split */}
                 <div className="relative h-full min-h-[500px] w-full rounded-3xl overflow-hidden shadow-2xl shadow-blue-900/10">
                     <img
-                        src="https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80"
+                        src="/assets/images/medical-team.png"
                         alt="Cơ sở vật chất phòng khám"
                         className="absolute inset-0 w-full h-full object-cover"
                     />

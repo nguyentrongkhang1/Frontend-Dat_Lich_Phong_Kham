@@ -4,7 +4,7 @@ import { PlusSquare, LogOut, User } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
 export default function Navbar() {
-    const { user, role, logout, switchRoleQuickly } = useAuth();
+    const { user, role, logout } = useAuth();
     const navigate = useNavigate();
 
     const handleLogout = () => {
@@ -35,33 +35,6 @@ export default function Navbar() {
                     {(role === 'DOCTOR' || role === 'ADMIN') && (
                         <Link to={role === 'ADMIN' ? '/admin/dashboard' : '/admin/appointments'} className="hover:text-primary transition-colors font-bold text-emerald-600">Trang Quản trị</Link>
                     )}
-                </div>
-
-                {/* Role Switcher for Testing (MOCK RBAC) */}
-                <div className="bg-orange-50 px-3 py-1 rounded-md border border-orange-200">
-                    <span className="text-xs text-orange-600 font-bold mr-2 uppercase">Test Role:</span>
-                    <select
-                        value={role}
-                        onChange={(e) => {
-                            const newRole = e.target.value;
-                            switchRoleQuickly(newRole);
-                            if (newRole === 'ADMIN') {
-                                navigate('/admin/dashboard');
-                            } else if (newRole === 'DOCTOR') {
-                                navigate('/admin/appointments');
-                            } else if (newRole === 'PATIENT') {
-                                navigate('/patient/history');
-                            } else {
-                                navigate('/');
-                            }
-                        }}
-                        className="text-sm bg-transparent border-none text-gray-700 font-semibold focus:ring-0 cursor-pointer outline-none"
-                    >
-                        <option value="GUEST">GUEST</option>
-                        <option value="PATIENT">PATIENT</option>
-                        <option value="DOCTOR">DOCTOR</option>
-                        <option value="ADMIN">ADMIN</option>
-                    </select>
                 </div>
 
                 {/* User Info / Login Button */}

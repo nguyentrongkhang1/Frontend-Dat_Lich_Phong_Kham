@@ -1,31 +1,84 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
-import { User, Calendar, Clock, CheckCircle, CreditCard, ChevronRight, Stethoscope, Briefcase, FileText } from 'lucide-react';
+import { User, Calendar, Clock, CheckCircle, CreditCard, ChevronRight, Stethoscope, Briefcase, FileText, Loader2 } from 'lucide-react';
+import api from '../services/api';
 
 export default function BookingFlow() {
     const [step, setStep] = useState(1);
     const [formData, setFormData] = useState({
         specialty: '',
+        specialtyId: '',
         doctor: '',
+        doctorId: '',
         date: '',
         time: '',
-        patientName: 'Nguyễn Văn A',
-        phone: '0901234567',
+        patientName: 'Bệnh nhân', // Will be fetched from profile
+        phone: '',
         symptoms: ''
     });
+
+    const [specialties, setSpecialties] = useState([]);
+    const [doctors, setDoctors] = useState([]);
+    const [loading, setLoading] = useState(true);
 
     // Modal thành công
     const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
 
     const timeSlots = ['08:00', '08:30', '09:00', '09:30', '10:00', '13:30', '14:00', '15:30', '16:00'];
 
+    useEffect(() => {
+        // Fetch specialties
+        api.get('/api/v1/public/specializations')
+            .then(res => {
+                setSpecialties(res.data);
+                setLoading(false);
+            })
+            .catch(err => {
+                console.error("Lỗi lấy chuyên khoa:", err);
+                setLoading(false);
+            });
+
+        // Fetch user profile if logged in
+        api.get('/api/v1/patients/profile')
+            .then(res => {
+                setFormData(prev => ({
+                    ...prev,
+                    patientName: res.data.fullName,
+                    phone: res.data.phoneNumber
+                }));
+            }).catch(err => console.log("Guest mode booking"));
+    }, []);
+
+    useEffect(() => {
+        if (formData.specialtyId) {
+            api.get(`/api/v1/public/doctors?specializationId=${formData.specialtyId}`)
+                .then(res => {
+                    setDoctors(res.data);
+                });
+        }
+    }, [formData.specialtyId]);
+
     const nextStep = () => setStep(s => Math.min(s + 1, 4));
     const prevStep = () => setStep(s => Math.max(s - 1, 1));
 
     const handleConfirmBooking = () => {
-        setIsSuccessModalOpen(true);
+        const payload = {
+            specializationId: formData.specialtyId,
+            doctorId: formData.doctorId,
+            appointmentDate: formData.date,
+            appointmentTime: formData.time,
+            symptoms: formData.symptoms,
+            patientPhone: formData.phone
+        };
+
+        api.post('/api/v1/patients/appointments/book', payload)
+            .then(res => {
+                setIsSuccessModalOpen(true);
+            }).catch(err => {
+                alert("Lỗi khi đặt lịch: " + (err.response?.data?.message || "Vui lòng thử lại"));
+            });
     };
 
     const Stepper = () => (
@@ -73,43 +126,53 @@ export default function BookingFlow() {
                                 <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
                                     <Stethoscope className="w-5 h-5 text-primary" /> Chọn Dịch vụ & Bác sĩ
                                 </h2>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                                    <div className="space-y-3">
-                                        <label className="text-sm font-semibold text-gray-700">Chuyên khoa</label>
-                                        <div className="grid grid-cols-1 gap-3">
-                                            {['Khoa Tổng quát', 'Khoa Nội', 'Khoa Nhi', 'Tai Mũi Họng'].map(spec => (
-                                                <div
-                                                    key={spec}
-                                                    onClick={() => setFormData({ ...formData, specialty: spec, doctor: '' })}
-                                                    className={`p-4 border rounded-xl cursor-pointer transition-all ${formData.specialty === spec ? 'border-primary bg-blue-50/50 shadow-sm shadow-blue-500/10 text-primary font-bold' : 'border-gray-200 hover:border-primary/50 text-gray-700 font-medium'}`}
-                                                >
-                                                    {spec}
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-
-                                    <div className="space-y-3">
-                                        <label className="text-sm font-semibold text-gray-700">Bác sĩ khám (Tùy chọn)</label>
-                                        {formData.specialty ? (
-                                            <div className="grid grid-cols-1 gap-3">
-                                                {['BS. Nguyễn Văn A', 'BS. Trần Thị B', 'Bất kỳ Bác sĩ nào'].map(doc => (
+                                {loading ? (
+                                    <div className="flex justify-center py-10"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
+                                ) : (
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                        <div className="space-y-3">
+                                            <label className="text-sm font-semibold text-gray-700">Chuyên khoa</label>
+                                            <div className="grid grid-cols-1 gap-3 max-h-[400px] overflow-y-auto pr-2">
+                                                {specialties.map(spec => (
                                                     <div
-                                                        key={doc}
-                                                        onClick={() => setFormData({ ...formData, doctor: doc })}
-                                                        className={`p-4 border rounded-xl cursor-pointer transition-all ${formData.doctor === doc ? 'border-primary bg-blue-50/50 shadow-sm shadow-blue-500/10 text-primary font-bold' : 'border-gray-200 hover:border-primary/50 text-gray-700 font-medium'}`}
+                                                        key={spec.id}
+                                                        onClick={() => setFormData({ ...formData, specialty: spec.name, specialtyId: spec.id, doctor: '', doctorId: '' })}
+                                                        className={`p-4 border rounded-xl cursor-pointer transition-all ${formData.specialtyId === spec.id ? 'border-primary bg-blue-50/50 shadow-sm shadow-blue-500/10 text-primary font-bold' : 'border-gray-200 hover:border-primary/50 text-gray-700 font-medium'}`}
                                                     >
-                                                        {doc}
+                                                        {spec.name}
                                                     </div>
                                                 ))}
                                             </div>
-                                        ) : (
-                                            <div className="h-full border-2 border-dashed border-gray-100 rounded-xl flex items-center justify-center p-6 text-center text-sm text-gray-400 font-medium bg-gray-50/50">
-                                                Vui lòng chọn Chuyên khoa trước để xem danh sách Bác sĩ
-                                            </div>
-                                        )}
+                                        </div>
+
+                                        <div className="space-y-3">
+                                            <label className="text-sm font-semibold text-gray-700">Bác sĩ khám (Tùy chọn)</label>
+                                            {formData.specialtyId ? (
+                                                <div className="grid grid-cols-1 gap-3 max-h-[400px] overflow-y-auto pr-2">
+                                                    <div
+                                                        onClick={() => setFormData({ ...formData, doctor: 'Bất kỳ Bác sĩ nào', doctorId: null })}
+                                                        className={`p-4 border rounded-xl cursor-pointer transition-all ${formData.doctor === 'Bất kỳ Bác sĩ nào' ? 'border-primary bg-blue-50/50 shadow-sm shadow-blue-500/10 text-primary font-bold' : 'border-gray-200 hover:border-primary/50 text-gray-700 font-medium'}`}
+                                                    >
+                                                        Bất kỳ Bác sĩ nào
+                                                    </div>
+                                                    {doctors.map(doc => (
+                                                        <div
+                                                            key={doc.id}
+                                                            onClick={() => setFormData({ ...formData, doctor: doc.fullName, doctorId: doc.id })}
+                                                            className={`p-4 border rounded-xl cursor-pointer transition-all ${formData.doctorId === doc.id ? 'border-primary bg-blue-50/50 shadow-sm shadow-blue-500/10 text-primary font-bold' : 'border-gray-200 hover:border-primary/50 text-gray-700 font-medium'}`}
+                                                        >
+                                                            {doc.fullName}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <div className="h-full border-2 border-dashed border-gray-100 rounded-xl flex items-center justify-center p-6 text-center text-sm text-gray-400 font-medium bg-gray-50/50">
+                                                    Vui lòng chọn Chuyên khoa trước để xem danh sách Bác sĩ
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
-                                </div>
+                                )}
                             </div>
                         )}
 

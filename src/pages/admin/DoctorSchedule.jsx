@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar as CalendarIcon, Clock, ChevronLeft, ChevronRight, Plus, Copy, Trash2, X } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import axios from 'axios';
+import api from '../../services/api';
 
 export default function DoctorSchedule() {
     const { role } = useAuth();
-    // Defaulting to 15th for the demo calendar mapping
-    const [selectedDate, setSelectedDate] = useState('2026-03-15');
-    const displayDateStr = 'Thứ 4, 15/03/2026'; // Hardcoded for purely UI purposes
+    // Lấy ngày hiện tại
+    const todayStr = new Date().toLocaleDateString('en-CA'); // Trả về dạng YYYY-MM-DD an toàn đối với timezone (trong nhiều trường hợp)
+    const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
 
     const [schedules, setSchedules] = useState([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -15,15 +15,23 @@ export default function DoctorSchedule() {
     const [slotToDelete, setSlotToDelete] = useState(null);
     const [formData, setFormData] = useState({ shift: 'MORNING' });
 
-    const fetchSchedules = () => {
-        const token = localStorage.getItem('token');
-        if (!token) return;
+    // Tính toán thông tin cho Calendar (Tháng hiện tại dựa vào selectedDate)
+    const currentDateObj = new Date(selectedDate);
+    const currentYear = currentDateObj.getFullYear();
+    const currentMonth = currentDateObj.getMonth();
+    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+    // 0 = Chủ Nhật, 1 = Thứ 2, ...
+    let firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay();
+    // Điều chỉnh để T2 ở đầu tuần (nếu cn=0 thì cn thành cột số 6, t2=1 -> cột 0)
+    let startDayOffset = firstDayOfMonth === 0 ? 6 : firstDayOfMonth - 1; 
 
-        axios.get(`http://localhost:8083/api/v1/doctors/schedules?date=${selectedDate}`, {
-            headers: { Authorization: `Bearer ${token}` }
-        }).then(res => {
-            setSchedules(res.data);
-        }).catch(err => console.error("Lỗi lấy lịch làm việc:", err));
+    // Mảng đánh dấu các ngày có lịch (lý tưởng nhất API phải hỗ trợ get lịch cả tháng, ở đây tạm fetch riêng lẻ theo ngày)
+
+    const fetchSchedules = () => {
+        api.get(`/api/v1/doctors/schedules?date=${selectedDate}`)
+            .then(res => {
+                setSchedules(res.data);
+            }).catch(err => console.error("Lỗi lấy lịch làm việc:", err));
     };
 
     useEffect(() => {
@@ -37,17 +45,14 @@ export default function DoctorSchedule() {
 
     const handleSave = (e) => {
         e.preventDefault();
-        const token = localStorage.getItem('token');
-
-        axios.post(`http://localhost:8083/api/v1/doctors/schedules?date=${selectedDate}&shift=${formData.shift}`, {}, {
-            headers: { Authorization: `Bearer ${token}` }
-        }).then(() => {
-            fetchSchedules();
-            setIsModalOpen(false);
-        }).catch(err => {
-            console.error("Lỗi đăng ký ca:", err);
-            alert("Không thể đăng ký ca làm việc. Có thể bạn đã đăng ký ca này rồi.");
-        });
+        api.post(`/api/v1/doctors/schedules?date=${selectedDate}&shift=${formData.shift}`, {})
+            .then(() => {
+                fetchSchedules();
+                setIsModalOpen(false);
+            }).catch(err => {
+                console.error("Lỗi đăng ký ca:", err);
+                alert("Không thể đăng ký ca làm việc. Có thể bạn đã đăng ký ca này rồi.");
+            });
     };
 
     const handleOpenDelete = (slot) => {
@@ -56,17 +61,25 @@ export default function DoctorSchedule() {
     };
 
     const confirmDelete = () => {
-        const token = localStorage.getItem('token');
-        axios.delete(`http://localhost:8083/api/v1/doctors/schedules/${slotToDelete.id}`, {
-            headers: { Authorization: `Bearer ${token}` }
-        }).then(() => {
-            fetchSchedules();
-            setIsDeleteModalOpen(false);
-            setSlotToDelete(null);
-        }).catch(err => {
-            console.error("Lỗi xóa ca:", err);
-            alert("Xóa không thành công.");
-        });
+        api.delete(`/api/v1/doctors/schedules/${slotToDelete.id}`)
+            .then(() => {
+                fetchSchedules();
+                setIsDeleteModalOpen(false);
+                setSlotToDelete(null);
+            }).catch(err => {
+                console.error("Lỗi xóa ca:", err);
+                alert("Xóa không thành công.");
+            });
+    };
+
+    const handlePrevMonth = () => {
+        let newDate = new Date(currentYear, currentMonth - 1, 1);
+        setSelectedDate(newDate.toISOString().split('T')[0]);
+    };
+    
+    const handleNextMonth = () => {
+        let newDate = new Date(currentYear, currentMonth + 1, 1);
+        setSelectedDate(newDate.toISOString().split('T')[0]);
     };
 
     return (
@@ -89,11 +102,11 @@ export default function DoctorSchedule() {
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="font-bold text-gray-800 flex items-center gap-2">
                                 <CalendarIcon className="w-5 h-5 text-primary" />
-                                Tháng 3, 2026
+                                Tháng {currentMonth + 1}, {currentYear}
                             </h3>
                             <div className="flex gap-1">
-                                <button className="p-1 hover:bg-gray-100 rounded transition-colors"><ChevronLeft className="w-4 h-4 text-gray-500" /></button>
-                                <button className="p-1 hover:bg-gray-100 rounded transition-colors"><ChevronRight className="w-4 h-4 text-gray-500" /></button>
+                                <button onClick={handlePrevMonth} className="p-1 hover:bg-gray-100 rounded transition-colors"><ChevronLeft className="w-4 h-4 text-gray-500" /></button>
+                                <button onClick={handleNextMonth} className="p-1 hover:bg-gray-100 rounded transition-colors"><ChevronRight className="w-4 h-4 text-gray-500" /></button>
                             </div>
                         </div>
 
@@ -108,15 +121,18 @@ export default function DoctorSchedule() {
                         </div>
 
                         <div className="grid grid-cols-7 gap-1 text-center text-sm">
-                            {[...Array(31)].map((_, i) => {
+                            {[...Array(startDayOffset)].map((_, i) => (
+                                <div key={`empty-${i}`} className="aspect-square"></div>
+                            ))}
+                            {[...Array(daysInMonth)].map((_, i) => {
                                 const day = i + 1;
-                                const isSelected = day === 15;
-                                const hasSchedule = [10, 12, 14, 15, 17].includes(day);
+                                const dateString = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                                const isSelected = dateString === selectedDate;
 
                                 return (
                                     <button
-                                        key={i}
-                                        onClick={() => setSelectedDate(`2026-03-${day.toString().padStart(2, '0')}`)}
+                                        key={dateString}
+                                        onClick={() => setSelectedDate(dateString)}
                                         className={`
                                             aspect-square flex items-center justify-center rounded-lg relative transition-all
                                             ${isSelected ? 'bg-primary text-white font-bold shadow-md shadow-blue-500/30'
@@ -124,9 +140,6 @@ export default function DoctorSchedule() {
                                         `}
                                     >
                                         {day}
-                                        {hasSchedule && !isSelected && (
-                                            <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full absolute bottom-1"></span>
-                                        )}
                                     </button>
                                 )
                             })}

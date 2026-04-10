@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Filter, Phone, CheckCircle, Clock, X, Stethoscope, FileText, Plus, Trash2, Loader2, AlertCircle } from 'lucide-react';
-import axios from 'axios';
+import api from '../../services/api';
 import { useNavigate } from 'react-router-dom';
 
 export default function PatientList() {
@@ -10,29 +10,25 @@ export default function PatientList() {
 
     const fetchPatients = () => {
         setLoading(true);
-        const token = localStorage.getItem('token');
-        if (!token) return;
-
-        axios.get('http://localhost:8083/api/v1/doctors/appointments/recent', {
-            headers: { Authorization: `Bearer ${token}` }
-        }).then(res => {
-            const fetched = res.data.map(dto => ({
-                id: dto.id,
-                name: dto.patientName || 'Chưa cập nhật',
-                time: dto.time || '--:--',
-                phone: dto.phone || 'Chưa cập nhật',
-                reason: dto.reason || 'Không rõ',
-                type: dto.type || 'Khám bệnh',
-                status: dto.status === 'COMPLETED' ? 'Đã khám xong' :
-                    dto.status === 'CANCELED' ? 'Đã hủy' : 'Đang đợi',
-                realStatus: dto.status
-            }));
-            setPatients(fetched);
-            setLoading(false);
-        }).catch(err => {
-            console.error("Lỗi lấy danh sách khám:", err);
-            setLoading(false);
-        });
+        api.get('/api/v1/doctors/appointments/recent')
+            .then(res => {
+                const fetched = res.data.map(dto => ({
+                    id: dto.id,
+                    name: dto.patientName || 'Chưa cập nhật',
+                    time: dto.time || '--:--',
+                    phone: dto.phone || 'Chưa cập nhật',
+                    reason: dto.reason || 'Không rõ',
+                    type: dto.type || 'Khám bệnh',
+                    status: dto.status === 'COMPLETED' ? 'Đã khám xong' :
+                        dto.status === 'CANCELED' ? 'Đã hủy' : 'Đang đợi',
+                    realStatus: dto.status
+                }));
+                setPatients(fetched);
+                setLoading(false);
+            }).catch(err => {
+                console.error("Lỗi lấy danh sách khám:", err);
+                setLoading(false);
+            });
     };
 
     useEffect(() => {
@@ -93,8 +89,6 @@ export default function PatientList() {
         }
 
         setIsSaving(true);
-        const token = localStorage.getItem('token');
-
         const payload = {
             diagnosis: diagnosis,
             notes: "Khám trực tiếp tại phòng khám",
@@ -107,18 +101,17 @@ export default function PatientList() {
                 }))
         };
 
-        axios.post(`http://localhost:8083/api/v1/doctors/appointments/${selectedPatient.id}/examine`, payload, {
-            headers: { Authorization: `Bearer ${token}` }
-        }).then(res => {
-            setIsExamineModalOpen(false);
-            setIsSaving(false);
-            fetchPatients(); // Reload list after saving
-            alert("Đã lưu bệnh án thành công!");
-        }).catch(err => {
-            console.error("Lỗi khi lưu khám:", err);
-            setIsSaving(false);
-            alert("Đã xảy ra lỗi khi lưu bệnh án. Vui lòng thử lại!");
-        });
+        api.post(`/api/v1/doctors/appointments/${selectedPatient.id}/examine`, payload)
+            .then(res => {
+                setIsExamineModalOpen(false);
+                setIsSaving(false);
+                fetchPatients(); // Reload list after saving
+                alert("Đã lưu bệnh án thành công!");
+            }).catch(err => {
+                console.error("Lỗi khi lưu khám:", err);
+                setIsSaving(false);
+                alert("Đã xảy ra lỗi khi lưu bệnh án. Vui lòng thử lại!");
+            });
     };
 
     const getStatusColor = (status) => {

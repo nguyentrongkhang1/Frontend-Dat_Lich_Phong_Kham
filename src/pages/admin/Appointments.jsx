@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, User, Phone, CheckCircle, XCircle, Search, Filter, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import axios from 'axios';
+import api from '../../services/api';
 
 export default function Appointments() {
     const [appointments, setAppointments] = useState([]);
@@ -9,11 +9,8 @@ export default function Appointments() {
     const [filter, setFilter] = useState('all');
 
     useEffect(() => {
-        const token = localStorage.getItem('token');
-        if (token) {
-            axios.get('http://localhost:8083/api/v1/doctors/appointments/recent', {
-                headers: { Authorization: `Bearer ${token}` }
-            }).then(res => {
+        api.get('/api/v1/doctors/appointments/recent')
+            .then(res => {
                 const fetched = res.data.map(dto => ({
                     id: dto.id,
                     time: dto.time || '--:--',
@@ -26,12 +23,9 @@ export default function Appointments() {
                 setAppointments(fetched);
                 setLoading(false);
             }).catch(err => {
-                console.error("Lỗi lấy danh sách bệnh nhân:", err);
+                console.error("Lỗi lấy danh sách khám:", err);
                 setLoading(false);
             });
-        } else {
-            setLoading(false);
-        }
     }, []);
 
     const filteredAppointments = appointments.filter(app => {
@@ -146,7 +140,7 @@ export default function Appointments() {
                                             {app.status === 'waiting' && (
                                                 <Link
                                                     to="/admin/examination"
-                                                    state={{ appointmentId: app.id, patientName: app.patient }}
+                                                    state={{ appointmentId: app.id, patientName: app.patient, patientPhone: app.phone, reason: app.reason }}
                                                     className="inline-flex items-center justify-center px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg text-sm font-bold transition-colors shadow-sm shadow-blue-500/20"
                                                 >
                                                     Tiếp nhận khám

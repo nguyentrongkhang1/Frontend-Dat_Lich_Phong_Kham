@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { User, Mail, Phone, MapPin, Award, BookOpen, Clock, Camera, Save, Star, CheckCircle, Loader2 } from 'lucide-react';
-import axios from 'axios';
+import api from '../../services/api';
 
 export default function DoctorProfile() {
     const [activeTab, setActiveTab] = useState('personal');
@@ -19,29 +19,21 @@ export default function DoctorProfile() {
     const [showToast, setShowToast] = useState(false);
 
     useEffect(() => {
-        const token = localStorage.getItem('token');
-        if (token) {
-            axios.get('http://localhost:8083/api/v1/doctors/profile', {
-                headers: { Authorization: `Bearer ${token}` }
+        api.get('/api/v1/doctors/profile')
+            .then(res => {
+                setProfile(prev => ({ ...prev, ...res.data }));
+                setIsLoading(false);
             })
-                .then(res => {
-                    setProfile(prev => ({ ...prev, ...res.data }));
-                    setIsLoading(false);
-                })
-                .catch(err => {
-                    console.error("Lỗi lấy thông tin:", err);
-                    setIsLoading(false);
-                });
-        }
+            .catch(err => {
+                console.error("Lỗi lấy thông tin:", err);
+                setIsLoading(false);
+            });
     }, []);
 
     const handleSave = (e) => {
         e?.preventDefault();
         setIsSaving(true);
-        const token = localStorage.getItem('token');
-        axios.put('http://localhost:8083/api/v1/doctors/profile', profile, {
-            headers: { Authorization: `Bearer ${token}` }
-        })
+        api.put('/api/v1/doctors/profile', profile)
             .then(res => {
                 setProfile(prev => ({ ...prev, ...res.data }));
                 setIsSaving(false);
@@ -86,7 +78,7 @@ export default function DoctorProfile() {
                 <div className="w-full md:w-72 bg-white rounded-2xl shadow-sm border border-gray-100 p-4 shrink-0">
                     <div className="flex flex-col items-center p-4 border-b border-gray-100 mb-4">
                         <div className="relative group cursor-pointer mb-4">
-                            <img src={`https://ui-avatars.com/api/?name=${profile.fullName || 'BS'}&background=1E6BFF&color=fff&size=200`} alt="Avatar" className="w-24 h-24 rounded-full object-cover shadow-sm" />
+                            <img src={profile.avatarUrl || `https://ui-avatars.com/api/?name=${profile.fullName || 'BS'}&background=1E6BFF&color=fff&size=200`} alt="Avatar" className="w-24 h-24 rounded-full object-cover shadow-sm" />
                             <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                                 <Camera className="w-6 h-6 text-white" />
                             </div>

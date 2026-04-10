@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Calendar, User, FileText, Activity, Clock, Search, AlertCircle, Loader2 } from 'lucide-react';
-import axios from 'axios';
+import api from '../../services/api';
 
 export default function PatientRecord() {
     const [searchQuery, setSearchQuery] = useState('');
@@ -23,10 +23,7 @@ export default function PatientRecord() {
         setCurrentPatient(null);
 
         try {
-            const token = localStorage.getItem('token');
-            const res = await axios.get(`http://localhost:8083/api/v1/doctors/patients/${patientId}/history`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const res = await api.get(`/api/v1/doctors/patients/${patientId}/history`);
             setCurrentPatient(res.data);
         } catch (err) {
             console.error("Lỗi tìm kiếm hồ sơ bệnh nhân:", err);

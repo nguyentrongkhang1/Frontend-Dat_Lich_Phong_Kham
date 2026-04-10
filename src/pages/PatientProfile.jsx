@@ -7,20 +7,49 @@ export default function PatientProfile() {
     const [activeTab, setActiveTab] = useState('personal');
 
     // Mock Actions State
+    const [profile, setProfile] = useState({
+        fullName: '',
+        gender: 'male',
+        dateOfBirth: '',
+        phoneNumber: '',
+        email: '',
+        address: ''
+    });
+    const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [showToast, setShowToast] = useState(false);
+
+    useEffect(() => {
+        api.get('/api/v1/patients/profile')
+            .then(res => {
+                setProfile(prev => ({ ...prev, ...res.data }));
+                setIsLoading(false);
+            })
+            .catch(err => {
+                console.error("Lỗi lấy hồ sơ:", err);
+                setIsLoading(false);
+            });
+    }, []);
 
     const handleSave = (e) => {
         e?.preventDefault();
         setIsSaving(true);
-        // Giả lập call API 800ms
-        setTimeout(() => {
-            setIsSaving(false);
-            setShowToast(true);
-            // Ẩn toast sau 3s
-            setTimeout(() => setShowToast(false), 3000);
-        }, 800);
+        api.put('/api/v1/patients/profile', profile)
+            .then(res => {
+                setProfile(prev => ({ ...prev, ...res.data }));
+                setIsSaving(false);
+                setShowToast(true);
+                setTimeout(() => setShowToast(false), 3000);
+            })
+            .catch(err => {
+                console.error("Lỗi cập nhật:", err);
+                setIsSaving(false);
+            });
     };
+
+    if (isLoading) {
+        return <div className="p-8 flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
+    }
 
     return (
         <div className="min-h-screen flex flex-col font-sans bg-gray-50 relative">
@@ -42,7 +71,7 @@ export default function PatientProfile() {
             {/* Header */}
             <div className="bg-primary text-white py-12 px-8 relative overflow-hidden">
                 <img
-                    src="https://images.unsplash.com/photo-1579684385127-1ef15d508118?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80"
+                    src="/assets/images/hospital-hero.png"
                     alt="Profile Background"
                     className="absolute inset-0 w-full h-full object-cover z-0"
                 />
@@ -63,14 +92,14 @@ export default function PatientProfile() {
                     <div className="flex flex-col items-center p-4 border-b border-gray-100 mb-4">
                         <div className="relative group cursor-pointer mb-3">
                             <div className="w-20 h-20 bg-blue-50 text-primary rounded-full flex items-center justify-center font-bold text-2xl">
-                                NA
+                                {profile.fullName?.charAt(0) || 'U'}
                             </div>
                             <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                                 <Camera className="w-6 h-6 text-white" />
                             </div>
                         </div>
-                        <h3 className="font-bold text-gray-900">Nguyễn Văn A</h3>
-                        <p className="text-sm text-gray-500 font-medium">#BN-2026-001</p>
+                        <h3 className="font-bold text-gray-900">{profile.fullName || 'Người dùng'}</h3>
+                        <p className="text-sm text-gray-500 font-medium">#{profile.username || 'N/A'}</p>
                     </div>
 
                     <nav className="space-y-1">
@@ -104,23 +133,31 @@ export default function PatientProfile() {
                                         <label className="text-sm font-semibold text-gray-700">Họ và tên</label>
                                         <div className="relative">
                                             <User className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                                            <input required type="text" defaultValue="Nguyễn Văn A" className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none" />
+                                            <input required type="text" value={profile.fullName || ''} onChange={e => setProfile({ ...profile, fullName: e.target.value })} className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none" />
                                         </div>
                                     </div>
 
                                     <div className="space-y-2">
                                         <label className="text-sm font-semibold text-gray-700">Giới tính</label>
-                                        <select className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none appearance-none cursor-pointer">
+                                        <select value={profile.gender || 'male'} onChange={e => setProfile({ ...profile, gender: e.target.value })} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none appearance-none cursor-pointer">
                                             <option value="male">Nam</option>
                                             <option value="female">Nữ</option>
                                         </select>
                                     </div>
 
                                     <div className="space-y-2">
+                                        <label className="text-sm font-semibold text-gray-700">Ngày sinh</label>
+                                        <div className="relative">
+                                            <Calendar className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                                            <input required type="date" value={profile.dateOfBirth || ''} onChange={e => setProfile({ ...profile, dateOfBirth: e.target.value })} className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none" />
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-2">
                                         <label className="text-sm font-semibold text-gray-700">Số điện thoại</label>
                                         <div className="relative">
                                             <Phone className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                                            <input required type="tel" defaultValue="0901234567" className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none" />
+                                            <input required type="tel" value={profile.phoneNumber || ''} onChange={e => setProfile({ ...profile, phoneNumber: e.target.value })} className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none" />
                                         </div>
                                     </div>
 
@@ -128,7 +165,7 @@ export default function PatientProfile() {
                                         <label className="text-sm font-semibold text-gray-700">Email</label>
                                         <div className="relative">
                                             <Mail className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                                            <input required type="email" defaultValue="nguyenvana@gmail.com" className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none" />
+                                            <input required type="email" value={profile.email || ''} onChange={e => setProfile({ ...profile, email: e.target.value })} className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none" />
                                         </div>
                                     </div>
                                 </div>
@@ -137,7 +174,7 @@ export default function PatientProfile() {
                                     <label className="text-sm font-semibold text-gray-700">Địa chỉ liên hệ</label>
                                     <div className="relative">
                                         <MapPin className="w-5 h-5 text-gray-400 absolute left-3 top-4" />
-                                        <textarea rows="3" className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none resize-none" defaultValue="Quận Tân Bình, TP. HCM"></textarea>
+                                        <textarea rows="3" className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none resize-none" value={profile.address || ''} onChange={e => setProfile({ ...profile, address: e.target.value })}></textarea>
                                     </div>
                                 </div>
 

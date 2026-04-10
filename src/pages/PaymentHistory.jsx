@@ -30,7 +30,7 @@ export default function PaymentHistory() {
             <div className="bg-primary text-white py-12 px-8 relative overflow-hidden">
                 {/* Background Image & Overlay */}
                 <img
-                    src="https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80"
+                    src="/assets/images/hospital-hero.png"
                     alt="Payment Background"
                     className="absolute inset-0 w-full h-full object-cover z-0"
                 />

@@ -1,26 +1,36 @@
-import React, { useState } from 'react';
-import { Search, Plus, Edit2, Trash2, X, UserCog } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Search, Plus, Edit2, Trash2, X, UserCog, Loader2 } from 'lucide-react';
+import api from '../../services/api';
 
 export default function DoctorManagement() {
     // 1. STATE QUẢN LÝ DỮ LIỆU
-    const [doctors, setDoctors] = useState([
-        { id: 1, name: 'BS. Trần Thu Hà', specialty: 'Nhi khoa', schedule: 'Sáng Thứ 2, 4, 6', status: 'Đang hoạt động' },
-        { id: 2, name: 'BS. Nguyễn Văn A', specialty: 'Khoa Nội', schedule: 'Chiều Thứ 3, 5', status: 'Nghỉ phép' },
-    ]);
+    const [doctors, setDoctors] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        api.get('/api/v1/public/doctors')
+            .then(res => {
+                setDoctors(res.data);
+                setIsLoading(false);
+            })
+            .catch(err => {
+                console.error("Lỗi lấy danh sách:", err);
+                setIsLoading(false);
+            });
+    }, []);
 
     // 2. STATE CHO MODAL
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalMode, setModalMode] = useState('add');
     const [selectedDoctor, setSelectedDoctor] = useState(null);
 
-    const initialFormData = { name: '', specialty: 'Nhi khoa', schedule: '', status: 'Đang hoạt động' };
+    const initialFormData = { fullName: '', specializationName: 'Nhi khoa', experienceYears: 1, status: 'Đang hoạt động' };
     const [formData, setFormData] = useState(initialFormData);
 
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [doctorToDelete, setDoctorToDelete] = useState(null);
 
-    // --- CÁC HÀM XỬ LÝ (MOCK ACTIONS) ---
-
+    // --- CÁC HÀM XỬ LÝ ---
     const handleOpenAdd = () => {
         setModalMode('add');
         setFormData(initialFormData);
@@ -36,13 +46,21 @@ export default function DoctorManagement() {
 
     const handleSave = (e) => {
         e.preventDefault();
-        if (modalMode === 'add') {
-            const newDoc = { ...formData, id: doctors.length + 1 };
-            setDoctors([...doctors, newDoc]);
-        } else {
-            setDoctors(doctors.map(d => d.id === selectedDoctor.id ? { ...formData, id: d.id } : d));
-        }
-        setIsModalOpen(false);
+        const promise = modalMode === 'add'
+            ? api.post('/api/v1/admin/doctors', formData)
+            : api.put(`/api/v1/admin/doctors/${selectedDoctor.username || selectedDoctor.email}`, formData);
+
+        promise.then(res => {
+            if (modalMode === 'add') {
+                setDoctors([...doctors, res.data]);
+            } else {
+                setDoctors(doctors.map(d => d.id === selectedDoctor.id ? res.data : d));
+            }
+            setIsModalOpen(false);
+        }).catch(err => {
+            console.error("Lỗi lưu bác sĩ:", err);
+            alert("Có lỗi xảy ra khi lưu bác sĩ");
+        });
     };
 
     const handleOpenDelete = (doctor) => {
@@ -51,9 +69,16 @@ export default function DoctorManagement() {
     };
 
     const confirmDelete = () => {
-        setDoctors(doctors.filter(d => d.id !== doctorToDelete.id));
-        setIsDeleteModalOpen(false);
-        setDoctorToDelete(null);
+        api.delete(`/api/v1/admin/doctors/${doctorToDelete.id}`)
+            .then(() => {
+                setDoctors(doctors.filter(d => d.id !== doctorToDelete.id));
+                setIsDeleteModalOpen(false);
+                setDoctorToDelete(null);
+            })
+            .catch(err => {
+                console.error("Lỗi xóa bác sĩ:", err);
+                alert("Không thể xóa bác sĩ này.");
+            });
     };
 
     return (
@@ -105,7 +130,9 @@ export default function DoctorManagement() {
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-100">
-                            {doctors.length === 0 ? (
+                            {isLoading ? (
+                                <tr><td colSpan="5" className="px-6 py-12 text-center text-gray-500"><Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" /></td></tr>
+                            ) : doctors.length === 0 ? (
                                 <tr>
                                     <td colSpan="5" className="px-6 py-12 text-center text-gray-500">
                                         Không có dữ liệu bác sĩ.
@@ -114,23 +141,25 @@ export default function DoctorManagement() {
                             ) : doctors.map((doctor) => (
                                 <tr key={doctor.id} className="hover:bg-gray-50 transition-colors">
                                     <td className="px-6 py-4 whitespace-nowrap">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
-                                                <UserCog className="w-5 h-5" />
+                                        <div className="flex items-center">
+                                            <div className="h-10 w-10 flex-shrink-0">
+                                                <img className="h-10 w-10 rounded-full object-cover border border-gray-100" src={doctor.avatarUrl || `https://ui-avatars.com/api/?name=${doctor.fullName}&background=EBF4FF&color=1E6BFF`} alt="" />
                                             </div>
-                                            <div className="text-sm font-bold text-gray-900">{doctor.name}</div>
+                                            <div className="ml-4">
+                                                <div className="text-sm font-bold text-gray-900">{doctor.fullName}</div>
+                                            </div>
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
-                                        <span className="text-sm text-gray-600 font-medium bg-gray-100 px-3 py-1 rounded inline-block">{doctor.specialty}</span>
+                                        <span className="text-sm text-gray-600 font-medium bg-gray-100 px-3 py-1 rounded inline-block">{doctor.specializationName}</span>
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{doctor.schedule}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">Kinh nghiệm: {doctor.experienceYears} năm</td>
                                     <td className="px-6 py-4 whitespace-nowrap">
-                                        <span className={`px-3 py-1.5 inline-flex text-xs font-bold rounded-full border ${doctor.status === 'Đang hoạt động'
+                                        <span className={`px-3 py-1.5 inline-flex text-xs font-bold rounded-full border ${doctor.status === 'Đang hoạt động' || !doctor.status
                                             ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                                             : 'bg-red-50 text-red-700 border-red-200'
                                             }`}>
-                                            {doctor.status}
+                                            {doctor.status || 'Đang hoạt động'}
                                         </span>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm">

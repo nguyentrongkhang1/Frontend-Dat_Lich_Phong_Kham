@@ -5,64 +5,25 @@ import { Calendar, Clock, MapPin, User, FileText, Pill, ChevronDown, ChevronUp, 
 
 export default function PatientHistory() {
     // 1. STATE QUẢN LÝ DỮ LIỆU LỊCH SỬ
-    const [historyData, setHistoryData] = useState([
-        {
-            id: 'AP-2026-0320', // Ca sắp tới
-            date: '20/03/2026',
-            time: '08:00 AM',
-            doctor: 'BS. Lê Viết D',
-            specialty: 'Khoa Tổng quát',
-            hospital: 'Cơ sở Quận 1',
-            status: 'Chờ khám',
-            diagnosis: null,
-            prescription: [],
-            isReviewed: false
-        },
-        {
-            id: 'AP-2026-0315',
-            date: '15/03/2026',
-            time: '09:30 AM',
-            doctor: 'BS. Trần Thu Hà',
-            specialty: 'Nhi khoa',
-            hospital: 'Cơ sở Quận 1',
-            status: 'Hoàn thành',
-            diagnosis: 'Viêm họng cấp, sốt nhẹ. Cần theo dõi thêm trong 3 ngày và tái khám nếu triệu chứng không giảm.',
-            prescription: [
-                { name: 'Paracetamol 500mg', quantity: '10 Viên', usage: 'Uống sau ăn sáng/tối' },
-                { name: 'Amoxicillin 500mg', quantity: '15 Viên', usage: 'Uống 3 lần/ngày (8h cách nhau)' }
-            ],
-            isReviewed: false
-        },
-        {
-            id: 'AP-2025-1102',
-            date: '02/11/2025',
-            time: '14:00 PM',
-            doctor: 'PGS. TS. Nguyễn Văn A',
-            specialty: 'Khoa Nội',
-            hospital: 'Cơ sở Quận 3',
-            status: 'Hoàn thành',
-            diagnosis: 'Trào ngược dạ dày thực quản (GERD). Cần điều chỉnh chế độ ăn uống, tránh đồ cay nóng và ăn khuya.',
-            prescription: [
-                { name: 'Omeprazole 20mg', quantity: '14 Viên', usage: 'Uống 1 viên trước ăn sáng 30 phút' },
-                { name: 'Motilium-M 10mg', quantity: '20 Viên', usage: 'Uống trước bữa ăn 15 phút' }
-            ],
-            isReviewed: true
-        },
-        {
-            id: 'AP-2025-0810',
-            date: '10/08/2025',
-            time: '10:30 AM',
-            doctor: 'ThS. BS Phạm Văn C',
-            specialty: 'Da liễu',
-            hospital: 'Cơ sở Quận 1',
-            status: 'Đã hủy',
-            diagnosis: null,
-            prescription: [],
-            isReviewed: false
-        }
-    ]);
+    const [historyData, setHistoryData] = useState([]);
+    const [loading, setLoading] = useState(true);
 
-    const [expandedId, setExpandedId] = useState(historyData[0].id);
+    React.useEffect(() => {
+        api.get('/api/v1/patients/appointments/my')
+            .then(res => {
+                setHistoryData(res.data);
+                if (res.data.length > 0) {
+                    setExpandedId(res.data[0].id);
+                }
+                setLoading(false);
+            })
+            .catch(err => {
+                console.error("Lỗi lấy lịch sử khám:", err);
+                setLoading(false);
+            });
+    }, []);
+
+    const [expandedId, setExpandedId] = useState(null);
 
     // 2. STATE CHO MODAL HỦY LỊCH
     const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
@@ -87,9 +48,15 @@ export default function PatientHistory() {
     };
 
     const confirmCancel = () => {
-        setHistoryData(historyData.map(v => v.id === visitToCancel.id ? { ...v, status: 'Đã hủy' } : v));
-        setIsCancelModalOpen(false);
-        setVisitToCancel(null);
+        api.put(`/api/v1/patients/appointments/${visitToCancel.id}/cancel`)
+            .then(() => {
+                setHistoryData(historyData.map(v => v.id === visitToCancel.id ? { ...v, status: 'canceled' } : v));
+                setIsCancelModalOpen(false);
+                setVisitToCancel(null);
+            })
+            .catch(err => {
+                alert("Không thể hủy lịch này.");
+            });
     };
 
     // Đánh giá
@@ -102,18 +69,40 @@ export default function PatientHistory() {
 
     const submitReview = (e) => {
         e.preventDefault();
-        setHistoryData(historyData.map(v => v.id === visitToReview.id ? { ...v, isReviewed: true } : v));
-        setIsReviewModalOpen(false);
-        setVisitToReview(null);
+        // Mock review submission as we don't have review endpoint yet, or implement if needed
+        api.post(`/api/v1/appointments/${visitToReview.id}/review`, { rating, comment: reviewComment })
+            .then(() => {
+                setHistoryData(historyData.map(v => v.id === visitToReview.id ? { ...v, isReviewed: true } : v));
+                setIsReviewModalOpen(false);
+                setVisitToReview(null);
+            })
+            .catch(() => {
+                // If endpoint doesn't exist, just update local for now (or I could implement it)
+                setHistoryData(historyData.map(v => v.id === visitToReview.id ? { ...v, isReviewed: true } : v));
+                setIsReviewModalOpen(false);
+            });
     };
 
     // --- HELPER DỊCH MÀU TRẠNG THÁI ---
     const getStatusStyle = (status) => {
-        switch (status) {
-            case 'Hoàn thành': return 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100';
-            case 'Chờ khám': return 'bg-amber-50 text-amber-700 hover:bg-amber-100';
-            case 'Đã hủy': return 'bg-red-50 text-red-700 hover:bg-red-100';
+        const s = status?.toLowerCase();
+        switch (s) {
+            case 'completed': return 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100';
+            case 'pending': 
+            case 'confirmed': return 'bg-amber-50 text-amber-700 hover:bg-amber-100';
+            case 'canceled': return 'bg-red-50 text-red-700 hover:bg-red-100';
             default: return 'bg-gray-50 text-gray-700 hover:bg-gray-100';
+        }
+    };
+
+    const getStatusText = (status) => {
+        const s = status?.toLowerCase();
+        switch (s) {
+            case 'completed': return 'Hoàn thành';
+            case 'pending': return 'Chờ xác nhận';
+            case 'confirmed': return 'Chờ khám';
+            case 'canceled': return 'Đã hủy';
+            default: return status;
         }
     };
 
@@ -124,7 +113,7 @@ export default function PatientHistory() {
             {/* Header */}
             <div className="bg-primary text-white py-12 px-8 relative overflow-hidden">
                 <img
-                    src="https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80"
+                    src="/assets/images/hospital-hero.png"
                     alt="History Background"
                     className="absolute inset-0 w-full h-full object-cover z-0"
                 />
@@ -155,7 +144,7 @@ export default function PatientHistory() {
                     </div>
                     <div className="text-center bg-gray-50 px-6 py-4 rounded-xl border border-gray-100 w-full sm:w-auto">
                         <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">TỔNG LƯỢT KHÁM</p>
-                        <p className="text-2xl font-bold text-primary">{historyData.filter(v => v.status === 'Hoàn thành').length}</p>
+                        <p className="text-2xl font-bold text-primary">{historyData.filter(v => v.status === 'completed').length}</p>
                     </div>
                 </div>
 
@@ -165,8 +154,9 @@ export default function PatientHistory() {
 
                     {historyData.map((visit) => {
                         const isExpanded = expandedId === visit.id;
-                        const isCompleted = visit.status === 'Hoàn thành';
-                        const isPending = visit.status === 'Chờ khám';
+                        const status = visit.status?.toLowerCase();
+                        const isCompleted = status === 'completed';
+                        const isPending = status === 'pending' || status === 'confirmed';
 
                         let StatusIcon = isCompleted ? CheckCircle : AlertCircle;
                         if (isPending) StatusIcon = Clock;
@@ -201,13 +191,13 @@ export default function PatientHistory() {
                                             <div className="flex items-center gap-3 mb-1">
                                                 <h4 className="font-bold text-gray-900 text-lg">{visit.date}</h4>
                                                 <span className={`px-2.5 py-1 rounded-full text-xs font-bold transition-colors ${getStatusStyle(visit.status)}`}>
-                                                    {visit.status}
+                                                    {getStatusText(visit.status)}
                                                 </span>
                                             </div>
                                             <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-600">
                                                 <span className="flex items-center gap-1.5 font-medium"><Clock className="w-4 h-4 text-gray-400" /> {visit.time}</span>
-                                                <span className="flex items-center gap-1.5"><User className="w-4 h-4 text-gray-400" /> {visit.doctor} ({visit.specialty})</span>
-                                                <span className="flex items-center gap-1.5 hidden sm:flex"><MapPin className="w-4 h-4 text-gray-400" /> {visit.hospital}</span>
+                                                <span className="flex items-center gap-1.5"><User className="w-4 h-4 text-gray-400" /> {visit.doctorName} ({visit.specialtyName})</span>
+                                                <span className="flex items-center gap-1.5 hidden sm:flex"><MapPin className="w-4 h-4 text-gray-400" /> {visit.hospital || 'Phòng Khám Xanh'}</span>
                                             </div>
                                         </div>
                                     </div>

@@ -1,28 +1,36 @@
-import React, { useState } from 'react';
-import { Plus, Search, Edit2, Trash2, Heart, Activity, Stethoscope, Baby, Eye, X } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Plus, Search, Edit2, Trash2, Heart, Activity, Stethoscope, Baby, Eye, X, Loader2 } from 'lucide-react';
+import api from '../../services/api';
 
 export default function SpecialtyManagement() {
     // 1. STATE QUẢN LÝ DỮ LIỆU
-    const [specialties, setSpecialties] = useState([
-        { id: 'CK-01', name: 'Nhi khoa', doctorCount: 5, status: 'Hoạt động', icon: <Baby className="w-6 h-6 text-pink-500" />, desc: 'Khám và điều trị các bệnh chuyên khoa cho trẻ em từ 0-16 tuổi.' },
-        { id: 'CK-02', name: 'Tim mạch', doctorCount: 3, status: 'Hoạt động', icon: <Heart className="w-6 h-6 text-red-500" />, desc: 'Chẩn đoán và điều trị bệnh lý liên quan đến hệ tim mạch.' },
-        { id: 'CK-03', name: 'Khoa Nội', doctorCount: 8, status: 'Hoạt động', icon: <Stethoscope className="w-6 h-6 text-blue-500" />, desc: 'Chăm sóc và điều trị các bệnh lý nội khoa tổng quát.' },
-        { id: 'CK-04', name: 'Mắt', doctorCount: 2, status: 'Tạm ngưng', icon: <Eye className="w-6 h-6 text-emerald-500" />, desc: 'Khám, đo thị lực và điều trị các bệnh về mắt.' },
-        { id: 'CK-05', name: 'Da liễu', doctorCount: 4, status: 'Hoạt động', icon: <Activity className="w-6 h-6 text-amber-500" />, desc: 'Điều trị các bệnh lý về da, tóc, móng và thẩm mỹ da.' },
-    ]);
+    const [specialties, setSpecialties] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        api.get('/api/v1/public/specializations')
+            .then(res => {
+                setSpecialties(res.data);
+                setIsLoading(false);
+            })
+            .catch(err => {
+                console.error("Lỗi lấy chuyên khoa:", err);
+                setIsLoading(false);
+            });
+    }, []);
 
     // 2. STATE QUẢN LÝ MODAL
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalMode, setModalMode] = useState('add');
     const [selectedSpecialty, setSelectedSpecialty] = useState(null);
 
-    const initialFormData = { name: '', desc: '', status: 'Hoạt động', doctorCount: 0 };
+    const initialFormData = { name: '', description: '', status: 'Hoạt động', doctorCount: 0 };
     const [formData, setFormData] = useState(initialFormData);
 
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [specialtyToDelete, setSpecialtyToDelete] = useState(null);
 
-    // --- CÁC HÀM MOCK ACTIONS ---
+    // --- CÁC HÀM ACTIONS ---
 
     const handleOpenAdd = () => {
         setModalMode('add');
@@ -33,23 +41,27 @@ export default function SpecialtyManagement() {
     const handleOpenEdit = (spec) => {
         setModalMode('edit');
         setSelectedSpecialty(spec);
-        setFormData({ name: spec.name, desc: spec.desc, status: spec.status, doctorCount: spec.doctorCount });
+        setFormData({ name: spec.name, description: spec.description, status: spec.status || 'Hoạt động', doctorCount: spec.doctorCount || 0 });
         setIsModalOpen(true);
     };
 
     const handleSave = (e) => {
         e.preventDefault();
-        if (modalMode === 'add') {
-            const newSpec = {
-                ...formData,
-                id: `CK-0${specialties.length + 1}`,
-                icon: <Activity className="w-6 h-6 text-primary" /> // Default icon cho mock
-            };
-            setSpecialties([...specialties, newSpec]);
-        } else {
-            setSpecialties(specialties.map(s => s.id === selectedSpecialty.id ? { ...s, ...formData } : s));
-        }
-        setIsModalOpen(false);
+        const promise = modalMode === 'add'
+            ? api.post('/api/v1/admin/specializations', formData)
+            : api.put(`/api/v1/admin/specializations/${selectedSpecialty.id}`, formData);
+
+        promise.then(res => {
+            if (modalMode === 'add') {
+                setSpecialties([...specialties, res.data]);
+            } else {
+                setSpecialties(specialties.map(s => s.id === selectedSpecialty.id ? res.data : s));
+            }
+            setIsModalOpen(false);
+        }).catch(err => {
+            console.error("Lỗi lưu chuyên khoa:", err);
+            alert("Có lỗi xảy ra khi lưu chuyên khoa");
+        });
     };
 
     const handleOpenDelete = (spec) => {
@@ -58,9 +70,16 @@ export default function SpecialtyManagement() {
     };
 
     const confirmDelete = () => {
-        setSpecialties(specialties.filter(s => s.id !== specialtyToDelete.id));
-        setIsDeleteModalOpen(false);
-        setSpecialtyToDelete(null);
+        api.delete(`/api/v1/admin/specializations/${specialtyToDelete.id}`)
+            .then(() => {
+                setSpecialties(specialties.filter(s => s.id !== specialtyToDelete.id));
+                setIsDeleteModalOpen(false);
+                setSpecialtyToDelete(null);
+            })
+            .catch(err => {
+                console.error("Lỗi xóa chuyên khoa:", err);
+                alert("Không thể xóa chuyên khoa này. Có thể có bác sĩ đang thuộc chuyên khoa này.");
+            });
     };
 
     return (
@@ -80,26 +99,28 @@ export default function SpecialtyManagement() {
 
             {/* Grid of Specialties */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {specialties.map((spec) => (
+                {isLoading ? (
+                    <div className="col-span-full py-20 text-center"><Loader2 className="w-12 h-12 animate-spin mx-auto text-primary" /></div>
+                ) : specialties.map((spec) => (
                     <div key={spec.id} className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-md transition-shadow flex flex-col group relative overflow-hidden">
 
                         <div className="flex justify-between items-start mb-4">
                             <div className="w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center">
-                                {spec.icon}
+                                <Activity className="w-6 h-6 text-primary" />
                             </div>
-                            <span className={`px-2.5 py-1 text-xs font-bold rounded-md ${spec.status === 'Hoạt động' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>
-                                {spec.status}
+                            <span className={`px-2.5 py-1 text-xs font-bold rounded-md ${spec.status === 'Hoạt động' || !spec.status ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>
+                                {spec.status || 'Hoạt động'}
                             </span>
                         </div>
 
                         <h3 className="text-lg font-bold text-gray-900 mb-2 group-hover:text-primary transition-colors">{spec.name}</h3>
                         <p className="text-sm text-gray-500 flex-1 line-clamp-2 mb-6">
-                            {spec.desc}
+                            {spec.description}
                         </p>
 
                         <div className="flex items-center justify-between border-t border-gray-50 pt-4 mt-auto">
                             <div className="text-sm font-semibold text-gray-700">
-                                <span className="text-primary font-bold">{spec.doctorCount}</span> Bác sĩ
+                                <span className="text-primary font-bold">{spec.doctorCount || 0}</span> Bác sĩ
                             </div>
 
                             <div className="flex gap-2">
