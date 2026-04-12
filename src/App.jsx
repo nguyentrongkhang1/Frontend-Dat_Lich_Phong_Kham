@@ -22,6 +22,7 @@ import DoctorExamination from './pages/admin/DoctorExamination';
 import Appointments from './pages/admin/Appointments';
 import MedicalRecordDetail from './pages/MedicalRecordDetail';
 import Reception from './pages/admin/Reception';
+import DoctorDetail from './pages/DoctorDetail';
 
 const AdminIndexRedirect = () => {
     const { role } = useAuth();
@@ -39,30 +40,31 @@ function App() {
                     <Route path="/" element={<Home />} />
                     <Route path="/auth" element={<Auth />} />
                     <Route path="/doctors" element={<DoctorList />} />
+                    <Route path="/doctors/:id" element={<DoctorDetail />} />
 
-                    {/* Patient Route (Chỉ PATIENT) */}
+                    {/* Patient Route (Chỉ USER) */}
                     <Route path="/book" element={
-                        <ProtectedRoute allowedRoles={['PATIENT', 'GUEST']}>
+                        <ProtectedRoute allowedRoles={['USER', 'GUEST']}>
                             <BookingFlow />
                         </ProtectedRoute>
                     } />
                     <Route path="/patient/history" element={
-                        <ProtectedRoute allowedRoles={['PATIENT']}>
+                        <ProtectedRoute allowedRoles={['USER']}>
                             <PatientHistory />
                         </ProtectedRoute>
                     } />
                     <Route path="/patient/profile" element={
-                        <ProtectedRoute allowedRoles={['PATIENT']}>
+                        <ProtectedRoute allowedRoles={['USER']}>
                             <PatientProfile />
                         </ProtectedRoute>
                     } />
                     <Route path="/patient/record-detail" element={
-                        <ProtectedRoute allowedRoles={['PATIENT']}>
+                        <ProtectedRoute allowedRoles={['USER']}>
                             <MedicalRecordDetail />
                         </ProtectedRoute>
                     } />
                     <Route path="/patient/payments" element={
-                        <ProtectedRoute allowedRoles={['PATIENT']}>
+                        <ProtectedRoute allowedRoles={['USER']}>
                             <PaymentHistory />
                         </ProtectedRoute>
                     } />

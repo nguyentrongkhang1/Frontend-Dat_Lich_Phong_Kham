@@ -8,6 +8,8 @@ export default function Auth() {
     const [isLogin, setIsLogin] = useState(true);
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
+    const [fullName, setFullName] = useState('');
+    const [email, setEmail] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
     const navigate = useNavigate();
@@ -31,8 +33,17 @@ export default function Auth() {
                     navigate('/');
                 }
             } else {
-                // Hiện tại chưa có endpoint register hoàn chỉnh, chuyển hướng tạm thời hoặc thông báo
-                alert("Tính năng đăng ký đang được bảo trì. Vui lòng liên hệ Admin.");
+                // Đăng ký tài khoản mới
+                await api.post('/api/auth/register', { 
+                    username, 
+                    password, 
+                    email, 
+                    fullName,
+                    role: 'USER' 
+                });
+                
+                alert("Đăng ký thành công! Bạn có thể đăng nhập ngay.");
+                setIsLogin(true);
                 setIsLoading(false);
             }
         } catch (e) {
@@ -107,6 +118,8 @@ export default function Auth() {
                                         </div>
                                         <input
                                             type="text"
+                                            value={fullName}
+                                            onChange={e => setFullName(e.target.value)}
                                             className="block w-full pl-11 pr-4 py-3 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary bg-gray-50/50 hover:bg-gray-50 transition-all outline-none"
                                             placeholder="Nguyễn Văn A"
                                         />
@@ -115,7 +128,7 @@ export default function Auth() {
                             )}
 
                             <div className="space-y-2 relative group">
-                                <label className="text-sm font-semibold text-gray-700">Email hoặc Số điện thoại</label>
+                                <label className="text-sm font-semibold text-gray-700">Tên đăng nhập</label>
                                 <div className="relative">
                                     <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
                                         <Mail className="h-5 w-5 text-gray-400 group-focus-within:text-primary transition-colors" />
@@ -129,6 +142,24 @@ export default function Auth() {
                                     />
                                 </div>
                             </div>
+
+                            {!isLogin && (
+                                <div className="space-y-2 relative group">
+                                    <label className="text-sm font-semibold text-gray-700">Email</label>
+                                    <div className="relative">
+                                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                                            <Mail className="h-5 w-5 text-gray-400 group-focus-within:text-primary transition-colors" />
+                                        </div>
+                                        <input
+                                            type="email"
+                                            value={email}
+                                            onChange={e => setEmail(e.target.value)}
+                                            className="block w-full pl-11 pr-4 py-3 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary bg-gray-50/50 hover:bg-gray-50 transition-all outline-none"
+                                            placeholder="example@mail.com"
+                                        />
+                                    </div>
+                                </div>
+                            )}
 
                             <div className="space-y-2 relative group">
                                 <div className="flex items-center justify-between">

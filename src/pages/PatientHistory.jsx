@@ -2,18 +2,28 @@ import React, { useState } from 'react';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
 import { Calendar, Clock, MapPin, User, FileText, Pill, ChevronDown, ChevronUp, CheckCircle, AlertCircle, X, Star, Trash2 } from 'lucide-react';
+import api from '../services/api';
 
 export default function PatientHistory() {
     // 1. STATE QUẢN LÝ DỮ LIỆU LỊCH SỬ
     const [historyData, setHistoryData] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [patientProfile, setPatientProfile] = useState(null);
 
     React.useEffect(() => {
+        // Lấy lịch sử khám
         api.get('/api/v1/patients/appointments/my')
             .then(res => {
-                setHistoryData(res.data);
-                if (res.data.length > 0) {
-                    setExpandedId(res.data[0].id);
+                const mappedData = res.data.map(v => {
+                    let parsedRx = [];
+                    if (v.prescription) {
+                        try { parsedRx = JSON.parse(v.prescription); } catch (e) { console.error(e) }
+                    }
+                    return { ...v, prescription: parsedRx };
+                });
+                setHistoryData(mappedData);
+                if (mappedData.length > 0) {
+                    setExpandedId(mappedData[0].id);
                 }
                 setLoading(false);
             })
@@ -21,6 +31,10 @@ export default function PatientHistory() {
                 console.error("Lỗi lấy lịch sử khám:", err);
                 setLoading(false);
             });
+        // Lấy thông tin hồ sơ bệnh nhân
+        api.get('/api/v1/patients/profile')
+            .then(res => setPatientProfile(res.data))
+            .catch(err => console.error("Lỗi lấy hồ sơ:", err));
     }, []);
 
     const [expandedId, setExpandedId] = useState(null);
@@ -132,14 +146,13 @@ export default function PatientHistory() {
                 {/* Patient Summary Card */}
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col sm:flex-row items-center gap-6 mb-8 mt-[-80px] relative z-10">
                     <div className="w-20 h-20 bg-blue-50 text-primary rounded-full flex items-center justify-center font-bold text-2xl shrink-0">
-                        NA
+                        {patientProfile?.fullName?.charAt(0)?.toUpperCase() || 'U'}
                     </div>
                     <div className="flex-1 text-center sm:text-left">
-                        <h2 className="text-xl font-bold text-gray-900">Nguyễn Văn A</h2>
+                        <h2 className="text-xl font-bold text-gray-900">{patientProfile?.fullName || 'Chưa cập nhật'}</h2>
                         <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4 mt-2 text-sm text-gray-500 font-medium">
-                            <span className="flex items-center gap-1.5"><User className="w-4 h-4" /> Nam, 31 tuổi</span>
-                            <span className="flex items-center gap-1.5"><MapPin className="w-4 h-4" /> Quận Tân Bình, TP. HCM</span>
-                            <span className="bg-blue-50 text-primary px-2.5 py-1 rounded-md text-xs font-bold">#BN-2026-001</span>
+                            <span className="flex items-center gap-1.5"><User className="w-4 h-4" /> {patientProfile?.gender === 'female' ? 'Nữ' : 'Nam'}</span>
+                            <span className="flex items-center gap-1.5"><MapPin className="w-4 h-4" /> {patientProfile?.address || 'Chưa cập nhật địa chỉ'}</span>
                         </div>
                     </div>
                     <div className="text-center bg-gray-50 px-6 py-4 rounded-xl border border-gray-100 w-full sm:w-auto">
@@ -263,6 +276,15 @@ export default function PatientHistory() {
                                                                 </table>
                                                             </div>
                                                         </div>
+                                                    </div>
+                                                )}
+
+                                                {visit.price && (
+                                                    <div className="mt-8 mb-2 bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-100/50 p-4 rounded-xl flex justify-between items-center text-sm shadow-sm">
+                                                        <span className="font-bold text-emerald-800 uppercase tracking-wider flex items-center gap-2"><CheckCircle className="w-4 h-4" /> Tổng chi phí</span>
+                                                        <span className="text-xl font-black text-emerald-600">
+                                                            {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(visit.price)}
+                                                        </span>
                                                     </div>
                                                 )}
 

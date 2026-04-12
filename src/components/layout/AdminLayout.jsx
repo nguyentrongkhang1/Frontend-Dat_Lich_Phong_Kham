@@ -1,17 +1,85 @@
-import React from 'react';
-import { Link, Outlet, useLocation } from 'react-router-dom';
-import { PlusSquare, LayoutDashboard, Users, Calendar, FileText, UserCog, Briefcase, Download } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { PlusSquare, LayoutDashboard, Users, Calendar, FileText, UserCog, Briefcase, Download, AlertOctagon } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import api from '../../services/api';
 
 export default function AdminLayout() {
     const location = useLocation();
     const path = location.pathname;
     const { role } = useAuth();
+    const navigate = useNavigate();
+
+    const [showReminder, setShowReminder] = useState(false);
+    const [tomorrowStr, setTomorrowStr] = useState('');
+
+    useEffect(() => {
+        if (role === 'DOCTOR') {
+            // Tính ngày mai
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            // Format YYYY-MM-DD local timezone safely
+            const shiftOffset = new Date(tomorrow.getTime() - (tomorrow.getTimezoneOffset() * 60000));
+            const dateStr = shiftOffset.toISOString().split('T')[0];
+            
+            const dd = String(tomorrow.getDate()).padStart(2, '0');
+            const mm = String(tomorrow.getMonth() + 1).padStart(2, '0');
+            setTomorrowStr(`${dd}/${mm}/${tomorrow.getFullYear()}`);
+
+            // Fetch schedules and profile to check leave status
+            Promise.all([
+                api.get(`/api/v1/doctors/schedules?date=${dateStr}`),
+                api.get('/api/v1/doctors/profile')
+            ]).then(([scheduleRes, profileRes]) => {
+                const { leaveStartDate, leaveEndDate } = profileRes.data;
+                const isOnLeave = leaveStartDate && leaveEndDate && dateStr >= leaveStartDate && dateStr <= leaveEndDate;
+                
+                // Nếu KHÔNG đang nghỉ phép VÀ chưa đăng ký ca nào -> Hiện Nhắc Nhở
+                if (!isOnLeave && scheduleRes.data && scheduleRes.data.length === 0) {
+                    setShowReminder(true);
+                }
+            }).catch(err => console.error("Error checking schedules or profile", err));
+        }
+    }, [role]);
 
     const isActive = (menuPath) => path.includes(menuPath);
 
     return (
         <div className="flex h-screen bg-gray-50 font-sans">
+            {/* Overlay nhắc nhở Đăng ký Lịch */}
+            {showReminder && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
+                    <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl animate-in zoom-in-95 duration-300">
+                        <div className="flex items-center gap-4 text-red-500 mb-4">
+                            <div className="p-3 bg-red-50 rounded-full">
+                                <AlertOctagon className="w-8 h-8" />
+                            </div>
+                            <h2 className="text-xl font-bold text-gray-900">Yêu cầu Đăng ký Lịch!</h2>
+                        </div>
+                        <p className="text-gray-600 mb-6 leading-relaxed">
+                            Hệ thống nhận thấy Bác sĩ chưa đăng ký lịch làm việc (Ca Sáng/Ca Chiều) cho ngày mai <strong className="text-gray-900">{tomorrowStr}</strong>. 
+                            <br/><br/>
+                            Vui lòng cập nhật sớm nhất để bệnh nhân có thể chủ động đặt lịch thăm khám!
+                        </p>
+                        <div className="flex gap-3">
+                            <button 
+                                onClick={() => setShowReminder(false)}
+                                className="flex-1 px-4 py-2.5 text-gray-700 bg-gray-100 hover:bg-gray-200 font-bold rounded-xl transition-colors">
+                                Bỏ qua tạm thời
+                            </button>
+                            <button 
+                                onClick={() => {
+                                    setShowReminder(false);
+                                    navigate('/admin/schedules');
+                                }}
+                                className="flex-1 px-4 py-2.5 text-white bg-red-500 hover:bg-red-600 font-bold rounded-xl transition-colors shadow-md shadow-red-500/30">
+                                Đi đến Đăng ký
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Sidebar */}
             <aside className="w-64 bg-[#0F172A] text-gray-300 flex flex-col shrink-0">
                 <div className="p-6 flex items-center gap-2 text-white font-bold tracking-wide">

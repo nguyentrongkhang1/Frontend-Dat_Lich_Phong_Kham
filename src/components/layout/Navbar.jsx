@@ -25,7 +25,7 @@ export default function Navbar() {
                     <Link to="/" className="hover:text-primary transition-colors">Trang chủ</Link>
                     <Link to="/doctors" className="hover:text-primary transition-colors">Đội ngũ Bác sĩ</Link>
 
-                    {role === 'PATIENT' && (
+                    {role === 'USER' && (
                         <>
                             <Link to="/patient/history" className="hover:text-primary transition-colors">Lịch sử khám</Link>
                             <Link to="/patient/profile" className="hover:text-primary transition-colors">Hồ sơ cá nhân</Link>
@@ -49,10 +49,14 @@ export default function Navbar() {
                 ) : (
                     <div className="flex items-center gap-4">
                         <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                            <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center text-primary">
-                                <User className="w-4 h-4" />
-                            </div>
-                            <span>Chào, {user?.name || role}</span>
+                            {user?.avatarUrl ? (
+                                <img src={user.avatarUrl} alt="Avatar" className="w-8 h-8 rounded-full object-cover" />
+                            ) : (
+                                <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center text-primary">
+                                    <User className="w-4 h-4" />
+                                </div>
+                            )}
+                            <span>Chào, {user?.fullName || user?.name || role}</span>
                         </div>
                         <button
                             onClick={handleLogout}

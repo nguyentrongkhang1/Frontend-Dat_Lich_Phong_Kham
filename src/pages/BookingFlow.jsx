@@ -1,19 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
-import { User, Calendar, Clock, CheckCircle, CreditCard, ChevronRight, Stethoscope, Briefcase, FileText, Loader2 } from 'lucide-react';
+import { User, Calendar, Clock, CheckCircle, CreditCard, ChevronRight, Stethoscope, Briefcase, FileText, Loader2, Star } from 'lucide-react';
 import api from '../services/api';
 
 export default function BookingFlow() {
+    const location = useLocation();
+    const passedState = location.state || {};
+
     const [step, setStep] = useState(1);
     const [formData, setFormData] = useState({
         specialty: '',
         specialtyId: '',
-        doctor: '',
-        doctorId: '',
-        date: '',
-        time: '',
+        doctor: passedState.doctorName || '',
+        doctorId: passedState.doctorId || '',
+        date: passedState.date || '',
+        time: passedState.time || '',
         patientName: 'Bệnh nhân', // Will be fetched from profile
         phone: '',
         symptoms: ''
@@ -22,17 +25,40 @@ export default function BookingFlow() {
     const [specialties, setSpecialties] = useState([]);
     const [doctors, setDoctors] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [dynamicTimeSlots, setDynamicTimeSlots] = useState([]);
+    const [isFetchingSlots, setIsFetchingSlots] = useState(false);
+    
+    // Thêm hover state 
+    const [hoveredDoctorId, setHoveredDoctorId] = useState(null);
 
     // Modal thành công
     const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
 
-    const timeSlots = ['08:00', '08:30', '09:00', '09:30', '10:00', '13:30', '14:00', '15:30', '16:00'];
+    const timeSlots = ['Ca Sáng', 'Ca Chiều'];
 
     useEffect(() => {
         // Fetch specialties
         api.get('/api/v1/public/specializations')
             .then(res => {
                 setSpecialties(res.data);
+                
+                // Thuật toán Pre-fill Chuyên khoa nếu có passedState.specialtyName
+                if (passedState.specialtyName) {
+                    const matchedSpec = res.data.find(s => s.name === passedState.specialtyName);
+                    if (matchedSpec) {
+                        setFormData(prev => ({
+                            ...prev,
+                            specialty: matchedSpec.name,
+                            specialtyId: matchedSpec.id
+                        }));
+                        
+                        // Auto-advance if time is already pre-selected
+                        if (passedState.time && passedState.doctorId) {
+                             setTimeout(() => setStep(3), 100);
+                        }
+                    }
+                }
+                
                 setLoading(false);
             })
             .catch(err => {
@@ -59,6 +85,27 @@ export default function BookingFlow() {
                 });
         }
     }, [formData.specialtyId]);
+
+    // Fetch available slots for doctor+date dynamically
+    useEffect(() => {
+        if (formData.doctorId && formData.date && formData.doctor !== 'Bất kỳ Bác sĩ nào') {
+            setIsFetchingSlots(true);
+            api.get(`/api/v1/public/doctors/${formData.doctorId}/available-slots?date=${formData.date}`)
+                .then(res => {
+                    setDynamicTimeSlots(res.data);
+                    setIsFetchingSlots(false);
+                    // Nếu thời gian đã chọn không còn khả dụng, reset
+                    if (formData.time && !res.data.includes(formData.time)) {
+                        setFormData(prev => ({ ...prev, time: '' }));
+                    }
+                })
+                .catch(err => {
+                    console.error("Lỗi lấy giờ rảnh:", err);
+                    setDynamicTimeSlots(['Ca Sáng', 'Ca Chiều']); // Fallback
+                    setIsFetchingSlots(false);
+                });
+        }
+    }, [formData.doctorId, formData.date]);
 
     const nextStep = () => setStep(s => Math.min(s + 1, 4));
     const prevStep = () => setStep(s => Math.max(s - 1, 1));
@@ -130,16 +177,24 @@ export default function BookingFlow() {
                                     <div className="flex justify-center py-10"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
                                 ) : (
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                                        <div className="space-y-3">
+                                        <div className="space-y-3 relative">
                                             <label className="text-sm font-semibold text-gray-700">Chuyên khoa</label>
+                                            <p className="text-xs text-blue-700 font-semibold mb-2 bg-blue-50/80 px-3 py-2 rounded-lg border border-blue-100 flex items-center">
+                                                💡 Mẹo: Chọn "Đa Khoa" nếu bạn không rõ triệu chứng thuộc Khoa nào.
+                                            </p>
                                             <div className="grid grid-cols-1 gap-3 max-h-[400px] overflow-y-auto pr-2">
-                                                {specialties.map(spec => (
+                                                {(passedState.doctorId && passedState.specialtyName ? specialties.filter(s => s.name === passedState.specialtyName) : specialties).map(spec => (
                                                     <div
                                                         key={spec.id}
-                                                        onClick={() => setFormData({ ...formData, specialty: spec.name, specialtyId: spec.id, doctor: '', doctorId: '' })}
-                                                        className={`p-4 border rounded-xl cursor-pointer transition-all ${formData.specialtyId === spec.id ? 'border-primary bg-blue-50/50 shadow-sm shadow-blue-500/10 text-primary font-bold' : 'border-gray-200 hover:border-primary/50 text-gray-700 font-medium'}`}
+                                                        onClick={() => {
+                                                            if (!passedState.doctorId) {
+                                                                setFormData({ ...formData, specialty: spec.name, specialtyId: spec.id, doctor: '', doctorId: '' })
+                                                            }
+                                                        }}
+                                                        className={`p-4 border rounded-xl transition-all ${passedState.doctorId ? 'cursor-not-allowed opacity-80' : 'cursor-pointer hover:border-primary/50'} ${formData.specialtyId === spec.id ? 'border-primary bg-blue-50/50 shadow-sm shadow-blue-500/10 text-primary font-bold' : 'border-gray-200 text-gray-700 font-medium'}`}
                                                     >
                                                         {spec.name}
+                                                        {passedState.doctorId && <span className="block text-xs text-blue-500 font-normal mt-1">Đã khóa theo Bác sĩ được chọn</span>}
                                                     </div>
                                                 ))}
                                             </div>
@@ -158,10 +213,43 @@ export default function BookingFlow() {
                                                     {doctors.map(doc => (
                                                         <div
                                                             key={doc.id}
-                                                            onClick={() => setFormData({ ...formData, doctor: doc.fullName, doctorId: doc.id })}
-                                                            className={`p-4 border rounded-xl cursor-pointer transition-all ${formData.doctorId === doc.id ? 'border-primary bg-blue-50/50 shadow-sm shadow-blue-500/10 text-primary font-bold' : 'border-gray-200 hover:border-primary/50 text-gray-700 font-medium'}`}
+                                                            onMouseEnter={() => setHoveredDoctorId(doc.id)}
+                                                            onMouseLeave={() => setHoveredDoctorId(null)}
+                                                            onClick={() => setFormData({ ...formData, doctor: doc.fullName, doctorId: doc.id, time: '' })}
+                                                            className={`p-4 border rounded-xl cursor-pointer transition-all relative ${formData.doctorId === doc.id ? 'border-primary bg-blue-50/50 shadow-sm shadow-blue-500/10 text-primary font-bold' : 'border-gray-200 hover:border-primary/50 text-gray-700 font-medium'}`}
                                                         >
                                                             {doc.fullName}
+                                                            <span className="text-xs font-normal text-gray-500 block">Kinh nghiệm: {doc.experienceYears} năm</span>
+                                                            
+                                                            {/* Doctor Info Tooltip */}
+                                                            {hoveredDoctorId === doc.id && (
+                                                                <div className="absolute right-full top-1/2 -translate-y-1/2 mr-4 w-64 bg-white rounded-2xl shadow-xl shadow-gray-200/60 border border-gray-100 p-4 z-50 animate-fade-in-up">
+                                                                    <div className="flex gap-3 mb-2">
+                                                                        <img 
+                                                                            src={doc.avatarUrl 
+                                                                                ? (doc.avatarUrl.startsWith('http') ? doc.avatarUrl : `http://localhost:8083${doc.avatarUrl}`) 
+                                                                                : `https://ui-avatars.com/api/?name=${encodeURIComponent(doc.fullName)}&background=1E6BFF&color=fff&size=100&bold=true`} 
+                                                                            alt={doc.fullName} 
+                                                                            className="w-12 h-12 rounded-full object-cover shadow-sm bg-gray-50"
+                                                                            onError={(e) => {
+                                                                                e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(doc.fullName)}&background=1E6BFF&color=fff&size=100&bold=true`;
+                                                                            }}
+                                                                        />
+                                                                        <div className="flex-1">
+                                                                            <h4 className="font-bold text-gray-900 text-sm whitespace-normal leading-tight">{doc.fullName}</h4>
+                                                                            <p className="text-xs text-primary font-medium mt-0.5">{doc.specializationName}</p>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="flex items-center gap-1 mt-2 mb-1">
+                                                                        <div className="flex text-amber-400"><Star className="w-3.5 h-3.5 fill-amber-400" /></div>
+                                                                        <span className="text-xs font-bold text-gray-700">5.0</span>
+                                                                        <span className="text-xs text-gray-400 ml-1">(120 đánh giá)</span>
+                                                                    </div>
+                                                                    <p className="text-xs text-gray-600 mt-2 font-normal leading-relaxed overflow-hidden" style={{display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'}}>
+                                                                        Bác sĩ có nhiều năm kinh nghiệm tại cơ sở.
+                                                                    </p>
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     ))}
                                                 </div>
@@ -195,18 +283,31 @@ export default function BookingFlow() {
 
                                     {formData.date && (
                                         <div>
-                                            <label className="text-sm font-semibold text-gray-700 block mb-3">Ca khám rảnh trong ngày</label>
-                                            <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
-                                                {timeSlots.map(time => (
-                                                    <div
-                                                        key={time}
-                                                        onClick={() => setFormData({ ...formData, time: time })}
-                                                        className={`py-2 px-1 text-center border rounded-lg cursor-pointer text-sm transition-colors ${formData.time === time ? 'bg-primary border-primary text-white font-bold shadow-md shadow-blue-500/20' : 'bg-white border-gray-200 text-gray-700 hover:border-primary/50 font-medium'}`}
-                                                    >
-                                                        {time}
-                                                    </div>
-                                                ))}
-                                            </div>
+                                            <label className="text-sm font-semibold text-gray-700 block mb-3">
+                                                Ca khám rảnh trong ngày {formData.doctor !== 'Bất kỳ Bác sĩ nào' && formData.doctor && <span className="text-primary font-bold ml-1">({formData.doctor})</span>}
+                                            </label>
+                                            
+                                            {isFetchingSlots ? (
+                                                <div className="flex justify-center py-4 text-emerald-500"><Loader2 className="w-6 h-6 animate-spin" /></div>
+                                            ) : (
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                    {(formData.doctorId && formData.doctor !== 'Bất kỳ Bác sĩ nào' ? dynamicTimeSlots : timeSlots).map(time => (
+                                                        <div
+                                                            key={time}
+                                                            onClick={() => setFormData({ ...formData, time: time })}
+                                                            className={`py-2 px-1 text-center border rounded-lg cursor-pointer text-sm transition-colors ${formData.time === time ? 'bg-primary border-primary text-white font-bold shadow-md shadow-blue-500/20' : 'bg-white border-gray-200 text-gray-700 hover:border-primary/50 font-medium'}`}
+                                                        >
+                                                            {time}
+                                                        </div>
+                                                    ))}
+                                                    
+                                                    {formData.doctorId && formData.doctor !== 'Bất kỳ Bác sĩ nào' && dynamicTimeSlots.length === 0 && (
+                                                        <div className="col-span-full py-4 text-center border-2 border-dashed border-gray-200 rounded-xl text-gray-400 font-medium">
+                                                            Bác sĩ đã kín lịch vào ngày này. Vui lòng chọn ngày khác!
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
                                         </div>
                                     )}
                                 </div>

@@ -17,8 +17,8 @@ export default function Appointments() {
                     patient: dto.patientName || 'Chưa cập nhật',
                     phone: dto.phone || 'Chưa cập nhật',
                     reason: dto.reason || 'Không rõ',
-                    status: dto.status === 'COMPLETED' ? 'completed' :
-                        dto.status === 'CANCELED' ? 'cancelled' : 'waiting'
+                    status: String(dto.status).toUpperCase() === 'COMPLETED' ? 'completed' :
+                        String(dto.status).toUpperCase() === 'CANCELED' ? 'cancelled' : 'waiting'
                 }));
                 setAppointments(fetched);
                 setLoading(false);

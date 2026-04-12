@@ -1,11 +1,71 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
 import api from '../services/api';
+import { Stethoscope, ArrowRight, Activity, Heart, RotateCcw } from 'lucide-react';
 
 export default function Home() {
     const [doctorCount, setDoctorCount] = useState(null);
+    const navigate = useNavigate();
+
+    // --- TRIAGE QUIZ STATE ---
+    const [quizStep, setQuizStep] = useState(1);
+    const [selectedRegion, setSelectedRegion] = useState(null);
+    const [suggestedSpec, setSuggestedSpec] = useState(null);
+    const [selectedSymptom, setSelectedSymptom] = useState(null);
+
+    const triageData = {
+        regions: [
+            { id: 'general', label: 'Toàn thân (Sốt, Mệt mỏi)', icon: '🤒' },
+            { id: 'body', label: 'Vùng Bụng / Ngực', icon: '🩻' },
+            { id: 'kids', label: 'Vấn đề của Trẻ Em', icon: '👶' },
+            { id: 'women', label: 'Sức khỏe Phụ Nữ', icon: '👩' }
+        ],
+        symptoms: {
+            'general': [
+                { label: 'Sốt cao, mệt mỏi kéo dài, đau đầu', spec: 'Nội Khoa' },
+                { label: 'Sụt cân bất thường, khát nước', spec: 'Nội Khoa' },
+                { label: 'Kiểm tra sức khỏe định kỳ (Không rõ bệnh)', spec: 'Đa Khoa' }
+            ],
+            'body': [
+                { label: 'Đau dạ dày, ở chua, khó tiêu', spec: 'Nội Khoa' },
+                { label: 'Tức ngực, khó thở, tim đập nhanh', spec: 'Nội Khoa' },
+                { label: 'Ho khan, ho có đờm lâu ngày', spec: 'Nội Khoa' }
+            ],
+            'kids': [
+                { label: 'Trẻ bị ho, khò khè, viêm họng', spec: 'Nhi Khoa' },
+                { label: 'Sốt cao co giật, lừ đừ', spec: 'Nhi Khoa' },
+                { label: 'Bé biếng ăn, rối loạn tiêu hóa', spec: 'Nhi Khoa' }
+            ],
+            'women': [
+                { label: 'Khám thai, siêu âm thai kỳ', spec: 'Sản phụ khoa' },
+                { label: 'Rối loạn nội tiết, đau bụng dưới', spec: 'Sản phụ khoa' },
+            ]
+        }
+    };
+
+    const handleSelectRegion = (regionId) => {
+        setSelectedRegion(regionId);
+        setQuizStep(2);
+    };
+
+    const handleSelectSymptom = (symptom) => {
+        setSelectedSymptom(symptom.label);
+        setSuggestedSpec(symptom.spec);
+        setQuizStep(3);
+    };
+
+    const handleBookQuiz = () => {
+        navigate('/book', { state: { specialtyName: suggestedSpec } });
+    };
+
+    const resetQuiz = () => {
+        setQuizStep(1);
+        setSelectedRegion(null);
+        setSuggestedSpec(null);
+        setSelectedSymptom(null);
+    };
 
     useEffect(() => {
         api.get('/api/v1/public/doctors')
@@ -73,6 +133,74 @@ export default function Home() {
                     </div>
                 </div>
             </div>
+
+            {/* Interactive Symptom Checker (Khám Sàng Lọc Online) */}
+            <section className="max-w-5xl mx-auto px-6 mb-20 -mt-8 relative z-20">
+                <div className="bg-white rounded-3xl shadow-2xl shadow-blue-900/10 border border-blue-50 overflow-hidden flex flex-col md:flex-row">
+                    {/* Left: Banner */}
+                    <div className="bg-gradient-to-br from-primary to-blue-800 p-10 md:w-1/3 text-white flex flex-col justify-center">
+                        <Stethoscope className="w-12 h-12 text-blue-200 mb-6" />
+                        <h2 className="text-3xl font-bold mb-4">Trợ lý Phân Khoa Thông Minh</h2>
+                        <p className="text-blue-100 opacity-90 leading-relaxed mb-6">
+                            Bạn không chắc chắn nên khám ở chuyên khoa nào? Hãy trả lời 2 câu hỏi thiết yếu để hệ thống gợi ý chính xác nhé.
+                        </p>
+                        {quizStep > 1 && (
+                            <button onClick={resetQuiz} className="flex items-center gap-2 text-sm text-blue-200 hover:text-white transition-colors w-fit">
+                                <RotateCcw className="w-4 h-4" /> Bắt đầu lại
+                            </button>
+                        )}
+                    </div>
+                    
+                    {/* Right: Interactive Quiz */}
+                    <div className="p-10 md:w-2/3 bg-white">
+                        {quizStep === 1 && (
+                            <div className="animate-in fade-in slide-in-from-right-4 duration-500">
+                                <div className="inline-flex items-center gap-2 text-primary uppercase font-bold text-sm tracking-wider mb-2">Bước 1/2</div>
+                                <h3 className="text-2xl font-bold text-gray-900 mb-6">Đối tượng hoặc Vùng đau của bạn là gì?</h3>
+                                <div className="grid grid-cols-2 gap-4">
+                                    {triageData.regions.map(r => (
+                                        <button key={r.id} onClick={() => handleSelectRegion(r.id)} 
+                                            className="p-4 border-2 border-gray-100 rounded-2xl hover:border-primary hover:bg-blue-50/50 transition-all text-left flex items-start gap-4 group">
+                                            <span className="text-3xl group-hover:scale-110 transition-transform">{r.icon}</span>
+                                            <span className="font-semibold text-gray-700 group-hover:text-primary mt-1">{r.label}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {quizStep === 2 && (
+                            <div className="animate-in fade-in slide-in-from-right-4 duration-500">
+                                <div className="inline-flex items-center gap-2 text-primary uppercase font-bold text-sm tracking-wider mb-2">Bước 2/2</div>
+                                <h3 className="text-2xl font-bold text-gray-900 mb-6">Triệu chứng của bạn gần giống với mô tả nào nhất?</h3>
+                                <div className="space-y-3">
+                                    {triageData.symptoms[selectedRegion].map((sym, idx) => (
+                                        <button key={idx} onClick={() => handleSelectSymptom(sym)} 
+                                            className="w-full p-4 border border-gray-200 rounded-xl hover:border-primary hover:shadow-md transition-all text-left flex items-center justify-between group bg-white">
+                                            <span className="font-medium text-gray-700 group-hover:text-gray-900">{sym.label}</span>
+                                            <ArrowRight className="w-5 h-5 text-gray-300 group-hover:text-primary transition-colors" />
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {quizStep === 3 && (
+                            <div className="animate-in fade-in zoom-in-95 duration-500 bg-emerald-50 border border-emerald-100 rounded-2xl p-8 text-center ring-4 ring-emerald-50/50">
+                                <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <Activity className="w-8 h-8" />
+                                </div>
+                                <p className="text-emerald-800 mb-2">Dựa trên triệu chứng <b>{selectedSymptom}</b></p>
+                                <h3 className="text-xl text-gray-600 mb-2">Chuyên khoa phù hợp nhất với bạn là:</h3>
+                                <h2 className="text-4xl font-extrabold text-emerald-600 mb-8">{suggestedSpec}</h2>
+                                <button onClick={handleBookQuiz} className="bg-emerald-500 hover:bg-emerald-600 text-white px-8 py-3.5 rounded-full font-bold text-lg transition-all shadow-lg shadow-emerald-500/30 flex items-center gap-2 mx-auto">
+                                    <Heart className="w-5 h-5" /> Đặt khám Khoa này ngay
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </section>
 
             {/* Split Layout Section: Introduce Hospital & Booking */}
             <section className="flex-1 max-w-7xl mx-auto w-full px-8 py-10 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">

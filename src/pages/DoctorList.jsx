@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
 import { Search, MapPin, Star, Calendar, Clock, ArrowRight, Loader2 } from 'lucide-react';
 import api from '../services/api';
 
 export default function DoctorList() {
+    const navigate = useNavigate();
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedSpecialty, setSelectedSpecialty] = useState('');
     const [specialties, setSpecialties] = useState([]);
@@ -111,14 +113,25 @@ export default function DoctorList() {
 
                             {/* Avatar & Basic Info */}
                             <div className="flex flex-col items-center sm:items-start shrink-0">
-                                <img src={doctor.avatarUrl || `https://ui-avatars.com/api/?name=${doctor.fullName}&background=1E6BFF&color=fff&size=200`} alt={doctor.fullName} className="w-28 h-28 object-cover rounded-2xl mb-4 shadow-sm" />
+                                <Link to={`/doctors/${doctor.id}`}>
+                                    <img 
+                                        src={doctor.avatarUrl 
+                                            ? (doctor.avatarUrl.startsWith('http') ? doctor.avatarUrl : `http://localhost:8083${doctor.avatarUrl}`) 
+                                            : `https://ui-avatars.com/api/?name=${encodeURIComponent(doctor.fullName)}&background=1E6BFF&color=fff&size=200&bold=true`} 
+                                        alt={doctor.fullName} 
+                                        className="w-28 h-28 object-cover rounded-2xl mb-4 shadow-sm hover:ring-4 hover:ring-primary/20 transition-all"
+                                        onError={(e) => {
+                                            e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(doctor.fullName)}&background=1E6BFF&color=fff&size=200&bold=true`;
+                                        }}
+                                    />
+                                </Link>
                                 <div className="text-center sm:text-left">
                                     <span className="inline-block px-3 py-1 bg-blue-50 text-primary rounded-full text-xs font-bold mb-2">
                                         {doctor.specializationName}
                                     </span>
                                     <div className="flex items-center gap-1 text-sm font-medium text-amber-500 justify-center sm:justify-start">
                                         <Star className="w-4 h-4 fill-amber-500" />
-                                        {doctor.rating || 5.0} <span className="text-gray-400 font-normal">({doctor.reviews || 0})</span>
+                                        {doctor.rating || 5.0} <span className="text-gray-400 font-normal">({doctor.reviewCount || 0})</span>
                                     </div>
                                 </div>
                             </div>
@@ -126,7 +139,9 @@ export default function DoctorList() {
                             {/* Details & Actions */}
                             <div className="flex-1 flex flex-col">
                                 <div className="mb-4 text-center sm:text-left">
-                                    <h3 className="text-xl font-bold text-gray-900 group-hover:text-primary transition-colors cursor-pointer">{doctor.fullName}</h3>
+                                    <Link to={`/doctors/${doctor.id}`}>
+                                        <h3 className="text-xl font-bold text-gray-900 hover:text-primary transition-colors cursor-pointer">{doctor.fullName}</h3>
+                                    </Link>
                                     <div className="flex flex-col gap-2 mt-3 text-sm text-gray-600">
                                         <div className="flex items-center gap-2 justify-center sm:justify-start">
                                             <MapPin className="w-4 h-4 text-gray-400" />
@@ -142,14 +157,21 @@ export default function DoctorList() {
                                 <div className="mt-auto pt-4 border-t border-gray-100">
                                     <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 text-center sm:text-left">Lịch trống hôm nay</p>
                                     <div className="flex flex-wrap gap-2 mb-4 justify-center sm:justify-start">
-                                        {(doctor.availableSlots || ['08:00', '10:00', '14:00']).map((slot, index) => (
-                                            <button key={index} className="px-3 py-1.5 bg-gray-50 hover:bg-primary hover:text-white border border-gray-200 hover:border-primary rounded-lg text-sm font-medium transition-colors cursor-pointer text-gray-700">
+                                        {(!doctor.availableSlots || doctor.availableSlots.length === 0) ? (
+                                            <p className="text-sm text-red-500 font-medium italic">Bác sĩ chưa có lịch trống hôm nay</p>
+                                        ) : doctor.availableSlots.map((slot, index) => (
+                                            <button 
+                                                key={index} 
+                                                onClick={() => navigate('/book', { state: { doctorId: doctor.id, doctorName: doctor.fullName, specialtyName: doctor.specializationName, time: slot } })}
+                                                className="px-3 py-1.5 bg-gray-50 hover:bg-primary hover:text-white border border-gray-200 hover:border-primary rounded-lg text-sm font-medium transition-colors cursor-pointer text-gray-700">
                                                 {slot}
                                             </button>
                                         ))}
                                     </div>
 
-                                    <button className="w-full bg-primary/10 hover:bg-primary text-primary hover:text-white font-bold py-3 rounded-xl transition-colors flex items-center justify-center gap-2">
+                                    <button 
+                                        onClick={() => navigate('/book', { state: { doctorId: doctor.id, doctorName: doctor.fullName, specialtyName: doctor.specializationName } })}
+                                        className="w-full bg-primary/10 hover:bg-primary text-primary hover:text-white font-bold py-3 rounded-xl transition-colors flex items-center justify-center gap-2">
                                         <Calendar className="w-4 h-4" />
                                         Đặt lịch với Bác sĩ này
                                     </button>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Edit2, Trash2, X, UserCog, Loader2 } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, X, UserCog, Loader2, CalendarOff, Image as ImageIcon, Upload, Trash } from 'lucide-react';
 import api from '../../services/api';
 
 export default function DoctorManagement() {
@@ -24,11 +24,35 @@ export default function DoctorManagement() {
     const [modalMode, setModalMode] = useState('add');
     const [selectedDoctor, setSelectedDoctor] = useState(null);
 
-    const initialFormData = { fullName: '', specializationName: 'Nhi khoa', experienceYears: 1, status: 'Đang hoạt động' };
+    const initialFormData = { 
+        username: '', 
+        password: '', 
+        email: '', 
+        phone: '', 
+        fullName: '', 
+        specializationId: '',
+        biography: '',
+        education: '',
+        hospital: '',
+        experienceYears: 0,
+        certificateUrls: []
+    };
     const [formData, setFormData] = useState(initialFormData);
+
+    const [specialties, setSpecialties] = useState([]);
+    
+    useEffect(() => {
+        api.get('/api/v1/public/specializations')
+           .then(res => setSpecialties(res.data))
+           .catch(err => console.error(err));
+    }, []);
 
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [doctorToDelete, setDoctorToDelete] = useState(null);
+
+    // 3. STATE CHO MODAL NGHỈ PHÉP
+    const [isLeaveModalOpen, setIsLeaveModalOpen] = useState(false);
+    const [leaveFormData, setLeaveFormData] = useState({ startDate: '', endDate: '' });
 
     // --- CÁC HÀM XỬ LÝ ---
     const handleOpenAdd = () => {
@@ -46,21 +70,60 @@ export default function DoctorManagement() {
 
     const handleSave = (e) => {
         e.preventDefault();
-        const promise = modalMode === 'add'
-            ? api.post('/api/v1/admin/doctors', formData)
-            : api.put(`/api/v1/admin/doctors/${selectedDoctor.username || selectedDoctor.email}`, formData);
-
-        promise.then(res => {
-            if (modalMode === 'add') {
-                setDoctors([...doctors, res.data]);
-            } else {
-                setDoctors(doctors.map(d => d.id === selectedDoctor.id ? res.data : d));
-            }
+        const apiCall = modalMode === 'add' ? api.post('/api/v1/admin/doctors', formData) : api.put(`/api/v1/admin/doctors/${selectedDoctor.id}`, formData);
+        
+        apiCall.then(res => {
+            if (modalMode === 'add') setDoctors([...doctors, res.data]);
+            else setDoctors(doctors.map(d => d.id === selectedDoctor.id ? res.data : d));
             setIsModalOpen(false);
-        }).catch(err => {
-            console.error("Lỗi lưu bác sĩ:", err);
-            alert("Có lỗi xảy ra khi lưu bác sĩ");
-        });
+        }).catch(err => alert("Lỗi khi lưu: " + (err.response?.data?.message || err.message)));
+    };
+
+    const [isUploading, setIsUploading] = useState(false);
+
+    const handleUploadCertificates = async (e) => {
+        const files = e.target.files;
+        if (!files || files.length === 0 || modalMode === 'add' && !selectedDoctor) {
+            // If adding new, we might need a different flow or save doctor first.
+            // For simplicity, let's assume we can only upload certificates for existing doctors.
+            if (modalMode === 'add') {
+                alert("Vui lòng tạo bác sĩ trước khi tải lên chứng chỉ chuyên môn.");
+                return;
+            }
+        }
+
+        setIsUploading(true);
+        for (let file of files) {
+            const uploadData = new FormData();
+            uploadData.append('file', file);
+            try {
+                const res = await api.post(`/api/v1/admin/doctors/${selectedDoctor.id}/certificates`, uploadData);
+                const newUrl = res.data.certificateUrl;
+                setFormData(prev => ({
+                    ...prev,
+                    certificateUrls: [...prev.certificateUrls, newUrl]
+                }));
+                // Update doctors list locally to sync
+                setDoctors(prev => prev.map(d => d.id === selectedDoctor.id ? { ...d, certificateUrls: [...d.certificateUrls, newUrl] } : d));
+            } catch (err) {
+                console.error("Lỗi upload:", err);
+            }
+        }
+        setIsUploading(false);
+    };
+
+    const handleRemoveCertificate = async (url) => {
+        if (!window.confirm("Xóa chứng chỉ này?")) return;
+        try {
+            await api.delete(`/api/v1/admin/doctors/${selectedDoctor.id}/certificates`, { data: { certificateUrl: url } });
+            setFormData(prev => ({
+                ...prev,
+                certificateUrls: prev.certificateUrls.filter(u => u !== url)
+            }));
+            setDoctors(prev => prev.map(d => d.id === selectedDoctor.id ? { ...d, certificateUrls: d.certificateUrls.filter(u => u !== url) } : d));
+        } catch (err) {
+            alert("Lỗi khi xóa chứng chỉ");
+        }
     };
 
     const handleOpenDelete = (doctor) => {
@@ -79,6 +142,34 @@ export default function DoctorManagement() {
                 console.error("Lỗi xóa bác sĩ:", err);
                 alert("Không thể xóa bác sĩ này.");
             });
+    };
+
+    const handleOpenLeave = (doctor) => {
+        setSelectedDoctor(doctor);
+        setLeaveFormData({
+            startDate: doctor.leaveStartDate || '',
+            endDate: doctor.leaveEndDate || ''
+        });
+        setIsLeaveModalOpen(true);
+    };
+
+    const handleSaveLeave = (e) => {
+        e.preventDefault();
+        api.put(`/api/v1/admin/doctors/${selectedDoctor.id}/assign-leave`, leaveFormData)
+            .then(() => {
+                setIsLeaveModalOpen(false);
+                api.get('/api/v1/public/doctors').then(res => setDoctors(res.data));
+            })
+            .catch(err => alert("Lỗi cấp phép: " + (err.response?.data?.message || err.message)));
+    };
+
+    const handleClearLeave = () => {
+        api.put(`/api/v1/admin/doctors/${selectedDoctor.id}/assign-leave`, { startDate: '', endDate: '' })
+            .then(() => {
+                setIsLeaveModalOpen(false);
+                api.get('/api/v1/public/doctors').then(res => setDoctors(res.data));
+            })
+            .catch(err => alert("Lỗi xóa phép: " + (err.response?.data?.message || err.message)));
     };
 
     return (
@@ -143,7 +234,16 @@ export default function DoctorManagement() {
                                     <td className="px-6 py-4 whitespace-nowrap">
                                         <div className="flex items-center">
                                             <div className="h-10 w-10 flex-shrink-0">
-                                                <img className="h-10 w-10 rounded-full object-cover border border-gray-100" src={doctor.avatarUrl || `https://ui-avatars.com/api/?name=${doctor.fullName}&background=EBF4FF&color=1E6BFF`} alt="" />
+                                                <img 
+                                                    className="h-10 w-10 rounded-full object-cover border border-gray-100" 
+                                                    src={doctor.avatarUrl 
+                                                        ? (doctor.avatarUrl.startsWith('http') ? doctor.avatarUrl : `http://localhost:8083${doctor.avatarUrl}`) 
+                                                        : `https://ui-avatars.com/api/?name=${encodeURIComponent(doctor.fullName)}&background=EBF4FF&color=1E6BFF&bold=true`} 
+                                                    alt={doctor.fullName} 
+                                                    onError={(e) => {
+                                                        e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(doctor.fullName)}&background=EBF4FF&color=1E6BFF&bold=true`;
+                                                    }}
+                                                />
                                             </div>
                                             <div className="ml-4">
                                                 <div className="text-sm font-bold text-gray-900">{doctor.fullName}</div>
@@ -155,12 +255,33 @@ export default function DoctorManagement() {
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">Kinh nghiệm: {doctor.experienceYears} năm</td>
                                     <td className="px-6 py-4 whitespace-nowrap">
-                                        <span className={`px-3 py-1.5 inline-flex text-xs font-bold rounded-full border ${doctor.status === 'Đang hoạt động' || !doctor.status
-                                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                            : 'bg-red-50 text-red-700 border-red-200'
-                                            }`}>
-                                            {doctor.status || 'Đang hoạt động'}
-                                        </span>
+                                        {(() => {
+                                            // Handle Timezone shift safely for "today"
+                                            const localDate = new Date();
+                                            const shiftOffset = new Date(localDate.getTime() - (localDate.getTimezoneOffset() * 60000));
+                                            const today = shiftOffset.toISOString().split('T')[0];
+                                            
+                                            const isOnLeave = doctor.leaveStartDate && doctor.leaveEndDate && today >= doctor.leaveStartDate && today <= doctor.leaveEndDate;
+                                            const formatLeaveDate = (dateString) => {
+                                                const [year, month, day] = dateString.split('-');
+                                                return `${day}/${month}/${year}`;
+                                            };
+                                            if (isOnLeave) {
+                                                return (
+                                                    <span className="px-3 py-1.5 inline-flex text-xs font-bold rounded-full border bg-orange-50 text-orange-700 border-orange-200">
+                                                        Nghỉ phép (đến {formatLeaveDate(doctor.leaveEndDate)})
+                                                    </span>
+                                                );
+                                            }
+                                            return (
+                                                <span className={`px-3 py-1.5 inline-flex text-xs font-bold rounded-full border ${doctor.status === 'Đang nghỉ việc' 
+                                                    ? 'bg-red-50 text-red-700 border-red-200'
+                                                    : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                                    }`}>
+                                                    {doctor.status || 'Đang hoạt động'}
+                                                </span>
+                                            );
+                                        })()}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
                                         <div className="flex items-center justify-end gap-2">
@@ -169,6 +290,11 @@ export default function DoctorManagement() {
                                                 className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors tooltip"
                                                 title="Sửa thông tin"
                                             ><Edit2 className="w-4 h-4" /></button>
+                                            <button
+                                                onClick={() => handleOpenLeave(doctor)}
+                                                className="p-2 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors tooltip"
+                                                title="Cấp phép nghỉ"
+                                            ><CalendarOff className="w-4 h-4" /></button>
                                             <button
                                                 onClick={() => handleOpenDelete(doctor)}
                                                 className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors tooltip"
@@ -199,28 +325,99 @@ export default function DoctorManagement() {
                         <form onSubmit={handleSave} className="p-6 space-y-4">
                             <div>
                                 <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">Họ & Tên Bác sĩ</label>
-                                <input required type="text" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-primary focus:border-primary" placeholder="VD: BS. CKI Nguyễn Văn C" />
+                                <input required type="text" value={formData.fullName} onChange={e => setFormData({ ...formData, fullName: e.target.value })} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-primary focus:border-primary" placeholder="VD: BS. CKI Nguyễn Văn C" />
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">Chuyên khoa</label>
-                                    <select value={formData.specialty} onChange={e => setFormData({ ...formData, specialty: e.target.value })} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-primary focus:border-primary">
-                                        <option value="Nhi khoa">Nhi khoa</option>
-                                        <option value="Khoa Nội">Khoa Nội</option>
-                                        <option value="Sản phụ khoa">Sản phụ khoa</option>
-                                    </select>
+                                    <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">Tên đăng nhập</label>
+                                    <input required type="text" value={formData.username} onChange={e => setFormData({ ...formData, username: e.target.value })} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-primary focus:border-primary" />
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">Trạng thái</label>
-                                    <select value={formData.status} onChange={e => setFormData({ ...formData, status: e.target.value })} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-primary focus:border-primary">
-                                        <option value="Đang hoạt động">Đang hoạt động</option>
-                                        <option value="Nghỉ phép">Nghỉ phép</option>
-                                    </select>
+                                    <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">Mật khẩu</label>
+                                    <input required type="password" value={formData.password} onChange={e => setFormData({ ...formData, password: e.target.value })} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-primary focus:border-primary" placeholder="Tùy chọn cho Bác sĩ" />
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">Email</label>
+                                    <input required type="email" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-primary focus:border-primary" />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">Số điện thoại</label>
+                                    <input required type="text" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-primary focus:border-primary" />
                                 </div>
                             </div>
                             <div>
-                                <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">Lịch làm việc</label>
-                                <input required type="text" value={formData.schedule} onChange={e => setFormData({ ...formData, schedule: e.target.value })} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-primary focus:border-primary" placeholder="VD: Sáng Thứ 2, 4, 6" />
+                                <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">Chuyên khoa</label>
+                                <select required value={formData.specializationId} onChange={e => setFormData({ ...formData, specializationId: e.target.value })} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-primary focus:border-primary">
+                                    <option value="">-- Chọn chuyên khoa --</option>
+                                    {specialties.map(s => (
+                                        <option key={s.id} value={s.id}>{s.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">Số năm kinh nghiệm</label>
+                                    <input type="number" value={formData.experienceYears} onChange={e => setFormData({ ...formData, experienceYears: e.target.value })} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-primary focus:border-primary" />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">Cơ sở công tác</label>
+                                    <input type="text" value={formData.hospital} onChange={e => setFormData({ ...formData, hospital: e.target.value })} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-primary focus:border-primary" placeholder="VD: Bệnh viện Chợ Rẫy" />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">Tiểu sử / Giới thiệu chuyên môn</label>
+                                <textarea rows="3" value={formData.biography} onChange={e => setFormData({ ...formData, biography: e.target.value })} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-primary focus:border-primary" placeholder="Giới thiệu chi tiết về bác sĩ..." />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">Quá trình đào tạo / Bằng cấp</label>
+                                <textarea rows="2" value={formData.education} onChange={e => setFormData({ ...formData, education: e.target.value })} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-primary focus:border-primary" placeholder="VD: Thạc sĩ Y khoa - ĐH Y Dược..." />
+                            </div>
+
+                            {/* Certificate Gallery */}
+                            <div className="border-t border-dashed border-gray-200 pt-4 mt-2">
+                                <div className="flex items-center justify-between mb-3">
+                                    <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider">Bộ sưu tập Chứng chỉ & Bằng cấp</label>
+                                    <label className={`cursor-pointer flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-primary rounded-lg text-xs font-bold hover:bg-blue-100 transition-colors ${modalMode === 'add' ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                                        <Upload className="w-3.5 h-3.5" />
+                                        {isUploading ? 'Đang tải...' : 'Thêm chứng chỉ'}
+                                        <input 
+                                            type="file" 
+                                            multiple 
+                                            accept="image/*" 
+                                            className="hidden" 
+                                            onChange={handleUploadCertificates} 
+                                            disabled={modalMode === 'add' || isUploading}
+                                        />
+                                    </label>
+                                </div>
+
+                                {formData.certificateUrls?.length > 0 ? (
+                                    <div className="grid grid-cols-4 gap-2">
+                                        {formData.certificateUrls.map((url, idx) => (
+                                            <div key={idx} className="relative group aspect-video rounded-lg overflow-hidden border border-gray-100">
+                                                <img 
+                                                    src={url.startsWith('http') ? url : `http://localhost:8083${url}`} 
+                                                    alt="Certificate" 
+                                                    className="w-full h-full object-cover" 
+                                                />
+                                                <button 
+                                                    type="button"
+                                                    onClick={() => handleRemoveCertificate(url)}
+                                                    className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-md opacity-0 group-hover:opacity-100 transition-opacity"
+                                                >
+                                                    <Trash className="w-3 h-3" />
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="py-8 bg-gray-50 rounded-xl border-2 border-dashed border-gray-100 flex flex-col items-center justify-center text-gray-400">
+                                        <ImageIcon className="w-8 h-8 mb-2 opacity-20" />
+                                        <p className="text-[10px] font-medium italic">Chưa có hình ảnh chứng chỉ minh chứng</p>
+                                    </div>
+                                )}
                             </div>
 
                             <div className="pt-4 flex items-center justify-end gap-3 border-t border-gray-100 mt-6">
@@ -252,6 +449,45 @@ export default function DoctorManagement() {
                 </div>
             )}
 
+            {/* Leave Modal */}
+            {isLeaveModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
+                        <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                            <h3 className="font-bold text-lg text-gray-800">Cấp phép nghỉ - {selectedDoctor?.fullName}</h3>
+                            <button onClick={() => setIsLeaveModalOpen(false)} className="text-gray-400 hover:text-gray-600 p-1 rounded-full border hover:bg-white transition-colors">
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <form onSubmit={handleSaveLeave} className="p-6">
+                            <div className="space-y-4">
+                                <p className="text-sm text-gray-600">Thiết lập thời gian nghỉ phép để vô hiệu hóa nhắc nhở đăng ký lịch.</p>
+                                
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Ngày bắt đầu nghỉ</label>
+                                    <input type="date" required 
+                                        className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary/20 outline-none" 
+                                        value={leaveFormData.startDate} 
+                                        onChange={e => setLeaveFormData({...leaveFormData, startDate: e.target.value})} />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Ngày kết thúc nghỉ</label>
+                                    <input type="date" required 
+                                        className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary/20 outline-none" 
+                                        value={leaveFormData.endDate} 
+                                        min={leaveFormData.startDate}
+                                        onChange={e => setLeaveFormData({...leaveFormData, endDate: e.target.value})} />
+                                </div>
+                            </div>
+                            <div className="mt-6 flex justify-end gap-3 pt-4 border-t border-gray-50">
+                                <button type="button" onClick={() => setIsLeaveModalOpen(false)} className="px-5 py-2.5 text-gray-600 font-medium hover:bg-gray-100 rounded-xl transition-colors">Bỏ qua</button>
+                                <button type="button" onClick={handleClearLeave} className="px-5 py-2.5 text-red-600 font-medium hover:bg-red-50 rounded-xl transition-colors">Xóa phép</button>
+                                <button type="submit" className="px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-medium rounded-xl transition-colors shadow-md shadow-orange-500/20">Lưu phân phép</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

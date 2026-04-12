@@ -184,7 +184,7 @@ export default function SpecialtyManagement() {
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">Mô tả ngắn</label>
-                                <textarea rows="3" value={formData.desc} onChange={e => setFormData({ ...formData, desc: e.target.value })} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-primary focus:border-primary" placeholder="Nhập mô tả về chuyên khoa này..."></textarea>
+                                <textarea rows="3" value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-primary focus:border-primary" placeholder="Nhập mô tả về chuyên khoa này..."></textarea>
                             </div>
 
                             <div className="pt-4 flex items-center justify-end gap-3 border-t border-gray-100 mt-6">

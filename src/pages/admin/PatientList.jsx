@@ -19,8 +19,8 @@ export default function PatientList() {
                     phone: dto.phone || 'Chưa cập nhật',
                     reason: dto.reason || 'Không rõ',
                     type: dto.type || 'Khám bệnh',
-                    status: dto.status === 'COMPLETED' ? 'Đã khám xong' :
-                        dto.status === 'CANCELED' ? 'Đã hủy' : 'Đang đợi',
+                    status: String(dto.status).toUpperCase() === 'COMPLETED' ? 'Đã khám xong' :
+                        String(dto.status).toUpperCase() === 'CANCELED' ? 'Đã hủy' : 'Đang đợi',
                     realStatus: dto.status
                 }));
                 setPatients(fetched);
