@@ -23,6 +23,7 @@ import Appointments from './pages/admin/Appointments';
 import MedicalRecordDetail from './pages/MedicalRecordDetail';
 import Reception from './pages/admin/Reception';
 import DoctorDetail from './pages/DoctorDetail';
+import PaymentManagement from './pages/admin/PaymentManagement';
 
 const AdminIndexRedirect = () => {
     const { role } = useAuth();
@@ -82,6 +83,7 @@ function App() {
                         <Route path="doctors" element={<ProtectedRoute allowedRoles={['ADMIN']}><DoctorManagement /></ProtectedRoute>} />
                         <Route path="users" element={<ProtectedRoute allowedRoles={['ADMIN']}><UserManagement /></ProtectedRoute>} />
                         <Route path="specialties" element={<ProtectedRoute allowedRoles={['ADMIN']}><SpecialtyManagement /></ProtectedRoute>} />
+                        <Route path="payments" element={<ProtectedRoute allowedRoles={['ADMIN']}><PaymentManagement /></ProtectedRoute>} />
                         <Route path="reception" element={<ProtectedRoute allowedRoles={['ADMIN']}><Reception /></ProtectedRoute>} />
 
                         {/* Các chức năng chỉ DOCTOR */}

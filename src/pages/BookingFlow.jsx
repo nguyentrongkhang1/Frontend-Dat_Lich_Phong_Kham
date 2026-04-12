@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
-import { User, Calendar, Clock, CheckCircle, CreditCard, ChevronRight, Stethoscope, Briefcase, FileText, Loader2, Star } from 'lucide-react';
+import { User, Calendar, Clock, CheckCircle, CreditCard, ChevronRight, Stethoscope, Briefcase, FileText, Loader2, Star, Wallet, Smartphone, ShieldCheck } from 'lucide-react';
 import api from '../services/api';
 
 export default function BookingFlow() {
@@ -33,6 +33,9 @@ export default function BookingFlow() {
 
     // Modal thành công
     const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+    const [createdAppointmentId, setCreatedAppointmentId] = useState(null);
+    const [paymentMethod, setPaymentMethod] = useState('COD');
+    const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
     const timeSlots = ['Ca Sáng', 'Ca Chiều'];
 
@@ -75,7 +78,34 @@ export default function BookingFlow() {
                     phone: res.data.phoneNumber
                 }));
             }).catch(err => console.log("Guest mode booking"));
-    }, []);
+
+        // Kiểm tra callback từ VNPay
+        const params = new URLSearchParams(location.search);
+        const paymentStatus = params.get('payment_status');
+        const appointmentId = params.get('appointmentId');
+
+        if (paymentStatus && appointmentId) {
+            setStep(5);
+            setCreatedAppointmentId(appointmentId);
+            if (paymentStatus === 'success') {
+                setIsSuccessModalOpen(true);
+                // Fetch appointment details to show in modal since state was lost on redirect
+                api.get(`/api/v1/patients/appointments/${appointmentId}`)
+                    .then(res => {
+                        setFormData(prev => ({
+                            ...prev,
+                            specialty: res.data.specializationName,
+                            date: res.data.appointmentDate,
+                            time: res.data.appointmentTime,
+                            patientName: res.data.patientName,
+                            phone: res.data.patientPhone
+                        }));
+                    });
+            } else {
+                alert("Thanh toán VNPay không thành công hoặc đã bị hủy. Vui lòng thử lại!");
+            }
+        }
+    }, [location.search]);
 
     useEffect(() => {
         if (formData.specialtyId) {
@@ -107,7 +137,7 @@ export default function BookingFlow() {
         }
     }, [formData.doctorId, formData.date]);
 
-    const nextStep = () => setStep(s => Math.min(s + 1, 4));
+    const nextStep = () => setStep(s => Math.min(s + 1, 5));
     const prevStep = () => setStep(s => Math.max(s - 1, 1));
 
     const handleConfirmBooking = () => {
@@ -120,12 +150,46 @@ export default function BookingFlow() {
             patientPhone: formData.phone
         };
 
+        setLoading(true);
         api.post('/api/v1/patients/appointments/book', payload)
             .then(res => {
-                setIsSuccessModalOpen(true);
+                // Backend trả về JSON { id: ..., message: ... }
+                setCreatedAppointmentId(res.data.id); 
+                setStep(5);
+                setLoading(false);
             }).catch(err => {
+                setLoading(false);
                 alert("Lỗi khi đặt lịch: " + (err.response?.data?.message || "Vui lòng thử lại"));
             });
+    };
+
+    const handleFinalizePayment = () => {
+        if (!createdAppointmentId) return;
+
+        setIsProcessingPayment(true);
+        if (paymentMethod === 'COD') {
+            api.post(`/api/v1/payments/cod/${createdAppointmentId}`)
+                .then(res => {
+                    setIsSuccessModalOpen(true);
+                    setIsProcessingPayment(false);
+                })
+                .catch(err => {
+                    setIsProcessingPayment(false);
+                    alert("Lỗi xác nhận COD: " + (err.response?.data?.message || "Vui lòng thử lại"));
+                });
+        } else {
+            // Logic cho VNPay
+            api.get(`/api/v1/payments/vnpay/create-url/${createdAppointmentId}`)
+                .then(res => {
+                    if (res.data.url) {
+                        window.location.href = res.data.url;
+                    }
+                })
+                .catch(err => {
+                    setIsProcessingPayment(false);
+                    alert("Lỗi tạo link VNPay: " + (err.response?.data?.message || "Vui lòng thử lại"));
+                });
+        }
     };
 
     const Stepper = () => (
@@ -137,7 +201,8 @@ export default function BookingFlow() {
                 { num: 1, title: 'Dịch vụ', icon: <Briefcase className="w-5 h-5" /> },
                 { num: 2, title: 'Ngày & Giờ', icon: <Calendar className="w-5 h-5" /> },
                 { num: 3, title: 'Thông tin', icon: <User className="w-5 h-5" /> },
-                { num: 4, title: 'Xác nhận', icon: <CheckCircle className="w-5 h-5" /> }
+                { num: 4, title: 'Xác nhận', icon: <CheckCircle className="w-5 h-5" /> },
+                { num: 5, title: 'Thanh toán', icon: <CreditCard className="w-5 h-5" /> }
             ].map((s) => (
                 <div key={s.num} className="flex flex-col items-center gap-2">
                     <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg transition-all duration-300 z-10 ${step >= s.num ? 'bg-primary text-white shadow-lg shadow-blue-500/30 border-2 border-primary' : 'bg-white text-gray-400 border-2 border-gray-200'
@@ -157,7 +222,7 @@ export default function BookingFlow() {
             <div className="bg-primary text-white py-12 px-8">
                 <div className="max-w-4xl mx-auto text-center">
                     <h1 className="text-3xl font-bold mb-3">Đặt lịch khám bệnh</h1>
-                    <p className="text-blue-100">Chỉ với 4 bước đơn giản, bạn đã có thể chủ động sắp xếp thời gian thăm khám tại Phòng Khám Xanh.</p>
+                    <p className="text-blue-100">Chỉ với 5 bước đơn giản, bạn đã có thể chủ động sắp xếp thời gian thăm khám tại Phòng Khám Xanh.</p>
                 </div>
             </div>
 
@@ -383,6 +448,61 @@ export default function BookingFlow() {
                             </div>
                         )}
 
+                        {/* Step 5: Payment Selection */}
+                        {step === 5 && (
+                            <div className="animate-in fade-in slide-in-from-right-4 duration-300">
+                                <h2 className="text-xl font-bold text-gray-900 mb-2 flex items-center gap-2">
+                                    <CreditCard className="w-5 h-5 text-primary" /> Phương thức thanh toán
+                                </h2>
+                                <p className="text-sm text-gray-500 mb-8">Vui lòng chọn cách bạn muốn thanh toán phí khám 300,000đ.</p>
+
+                                <div className="grid grid-cols-1 gap-4 max-w-lg mx-auto">
+                                    <div
+                                        onClick={() => setPaymentMethod('COD')}
+                                        className={`group relative p-5 border-2 rounded-2xl cursor-pointer transition-all duration-300 ${paymentMethod === 'COD' ? 'border-primary bg-blue-50/30' : 'border-gray-100 hover:border-blue-200 bg-white'}`}
+                                    >
+                                        <div className="flex items-center gap-4">
+                                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${paymentMethod === 'COD' ? 'bg-primary text-white shadow-lg shadow-blue-500/30' : 'bg-gray-100 text-gray-400 group-hover:bg-blue-100 group-hover:text-primary'}`}>
+                                                <Wallet className="w-6 h-6" />
+                                            </div>
+                                            <div className="flex-1">
+                                                <h4 className={`font-bold text-sm ${paymentMethod === 'COD' ? 'text-gray-900' : 'text-gray-700'}`}>Thanh toán tại quầy (COD)</h4>
+                                                <p className="text-xs text-gray-500 mt-0.5">Thanh toán bằng tiền mặt/thẻ khi đến khám.</p>
+                                            </div>
+                                            {paymentMethod === 'COD' && <CheckCircle className="w-5 h-5 text-primary" />}
+                                        </div>
+                                    </div>
+
+                                    <div
+                                        onClick={() => setPaymentMethod('VNPAY')}
+                                        className={`group relative p-5 border-2 rounded-2xl cursor-pointer transition-all duration-300 ${paymentMethod === 'VNPAY' ? 'border-primary bg-blue-50/30' : 'border-gray-100 hover:border-blue-200 bg-white'}`}
+                                    >
+                                        <div className="flex items-center gap-4">
+                                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${paymentMethod === 'VNPAY' ? 'bg-primary text-white shadow-lg shadow-blue-500/30' : 'bg-gray-100 text-gray-400 group-hover:bg-blue-100 group-hover:text-primary'}`}>
+                                                <Smartphone className="w-6 h-6" />
+                                            </div>
+                                            <div className="flex-1">
+                                                <div className="flex items-center gap-2">
+                                                    <h4 className={`font-bold text-sm ${paymentMethod === 'VNPAY' ? 'text-gray-900' : 'text-gray-700'}`}>Thanh toán VNPay</h4>
+                                                    <span className="bg-orange-100 text-orange-600 text-[10px] px-1.5 py-0.5 rounded font-bold uppercase">Khuyên dùng</span>
+                                                </div>
+                                                <p className="text-xs text-gray-500 mt-0.5">Thanh toán nhanh qua App Ngân hàng, Ví điện tử.</p>
+                                            </div>
+                                            {paymentMethod === 'VNPAY' && <CheckCircle className="w-5 h-5 text-primary" />}
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-4 p-4 rounded-xl bg-gray-50 border border-gray-100 flex items-start gap-3">
+                                        <ShieldCheck className="w-5 h-5 text-emerald-500 shrink-0" />
+                                        <p className="text-[11px] text-gray-500 leading-relaxed">
+                                            Thông tin thanh toán của bạn được bảo mật tuyệt đối với tiêu chuẩn quốc tế. 
+                                            Dữ liệu được mã hóa và không bao giờ được lưu trữ trên máy chủ của chúng tôi.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
                     </div>
 
                     {/* Navigation Buttons */}
@@ -406,13 +526,23 @@ export default function BookingFlow() {
                             >
                                 Tiếp tục <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                             </button>
-                        ) : (
+                        ) : step === 4 ? (
                             <button
                                 onClick={handleConfirmBooking}
+                                disabled={loading}
+                                className="bg-primary hover:bg-primary-dark text-white px-8 py-3 rounded-xl font-bold transition-all shadow-md shadow-blue-500/20 flex items-center gap-2"
+                            >
+                                {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle className="w-5 h-5" />}
+                                Xác nhận Lịch hẹn
+                            </button>
+                        ) : (
+                            <button
+                                onClick={handleFinalizePayment}
+                                disabled={isProcessingPayment}
                                 className="bg-emerald-500 hover:bg-emerald-600 text-white px-8 py-3 rounded-xl font-bold transition-all shadow-md shadow-emerald-500/20 flex items-center gap-2"
                             >
-                                <CreditCard className="w-5 h-5" />
-                                Xác nhận Thanh toán & Đặt
+                                {isProcessingPayment ? <Loader2 className="w-5 h-5 animate-spin" /> : <CreditCard className="w-5 h-5" />}
+                                Hoàn tất & Đặt lịch
                             </button>
                         )}
                     </div>

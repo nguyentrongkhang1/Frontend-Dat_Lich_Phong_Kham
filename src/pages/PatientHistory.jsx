@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
-import { Calendar, Clock, MapPin, User, FileText, Pill, ChevronDown, ChevronUp, CheckCircle, AlertCircle, X, Star, Trash2 } from 'lucide-react';
+import { Calendar, Clock, MapPin, User, FileText, Pill, ChevronDown, ChevronUp, CheckCircle, AlertCircle, X, Star, Trash2, CreditCard } from 'lucide-react';
 import api from '../services/api';
 
 export default function PatientHistory() {
@@ -227,10 +227,24 @@ export default function PatientHistory() {
                                 {isExpanded && (
                                     <div className="px-6 pb-6 pt-2 border-t border-gray-50">
 
+                                        {/* Thông tin đăng ký & đặt lịch (Chỉ hiển thị Phương thức thanh toán) */}
+                                        <div className="mb-6">
+                                            <div className="bg-gray-50/80 p-4 rounded-xl border border-gray-100 flex items-start gap-3 w-full sm:w-1/2">
+                                                <CreditCard className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                                                <div>
+                                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Phương thức thanh toán</p>
+                                                    <p className="text-sm font-bold text-gray-700">
+                                                        {visit.paymentMethod === 'VNPAY' ? 'Thanh toán VNPay' : 
+                                                         visit.paymentMethod === 'COD' ? 'Thanh toán tại quầy' : visit.paymentMethod}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+
                                         {/* Nếu chưa khám hoặc bị hủy -> Hiển thị cảnh báo */}
                                         {(!isCompleted) && (
-                                            <div className="text-sm font-medium text-gray-500 flex items-center gap-2 bg-gray-50 p-4 rounded-xl border border-gray-100">
-                                                <Clock className="w-4 h-4" />
+                                            <div className="text-sm font-medium text-gray-500 flex items-center gap-2 bg-blue-50/50 p-4 rounded-xl border border-blue-100/50">
+                                                <AlertCircle className="w-4 h-4 text-primary" />
                                                 {isPending ? 'Ca khám sắp diễn ra. Bạn có thể hủy trước lịch 24 giờ.' : 'Ca khám này đã bị hủy, không có hồ sơ bệnh án.'}
                                             </div>
                                         )}

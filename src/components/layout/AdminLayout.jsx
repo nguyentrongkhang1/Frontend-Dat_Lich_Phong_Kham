@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { PlusSquare, LayoutDashboard, Users, Calendar, FileText, UserCog, Briefcase, Download, AlertOctagon } from 'lucide-react';
+import { PlusSquare, LayoutDashboard, Users, Calendar, FileText, UserCog, Briefcase, Download, AlertOctagon, LogOut, CreditCard } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../services/api';
 
 export default function AdminLayout() {
     const location = useLocation();
     const path = location.pathname;
-    const { role } = useAuth();
+    const { role, logout } = useAuth();
     const navigate = useNavigate();
+    const [displayName, setDisplayName] = useState('');
 
     const [showReminder, setShowReminder] = useState(false);
     const [tomorrowStr, setTomorrowStr] = useState('');
@@ -21,7 +22,7 @@ export default function AdminLayout() {
             // Format YYYY-MM-DD local timezone safely
             const shiftOffset = new Date(tomorrow.getTime() - (tomorrow.getTimezoneOffset() * 60000));
             const dateStr = shiftOffset.toISOString().split('T')[0];
-            
+
             const dd = String(tomorrow.getDate()).padStart(2, '0');
             const mm = String(tomorrow.getMonth() + 1).padStart(2, '0');
             setTomorrowStr(`${dd}/${mm}/${tomorrow.getFullYear()}`);
@@ -31,16 +32,24 @@ export default function AdminLayout() {
                 api.get(`/api/v1/doctors/schedules?date=${dateStr}`),
                 api.get('/api/v1/doctors/profile')
             ]).then(([scheduleRes, profileRes]) => {
+                setDisplayName(profileRes.data.fullName);
                 const { leaveStartDate, leaveEndDate } = profileRes.data;
                 const isOnLeave = leaveStartDate && leaveEndDate && dateStr >= leaveStartDate && dateStr <= leaveEndDate;
-                
+
                 // Nếu KHÔNG đang nghỉ phép VÀ chưa đăng ký ca nào -> Hiện Nhắc Nhở
                 if (!isOnLeave && scheduleRes.data && scheduleRes.data.length === 0) {
                     setShowReminder(true);
                 }
             }).catch(err => console.error("Error checking schedules or profile", err));
+        } else if (role === 'ADMIN') {
+            setDisplayName('Quản trị viên');
         }
     }, [role]);
+
+    const handleLogout = () => {
+        logout();
+        navigate('/auth');
+    };
 
     const isActive = (menuPath) => path.includes(menuPath);
 
@@ -57,17 +66,17 @@ export default function AdminLayout() {
                             <h2 className="text-xl font-bold text-gray-900">Yêu cầu Đăng ký Lịch!</h2>
                         </div>
                         <p className="text-gray-600 mb-6 leading-relaxed">
-                            Hệ thống nhận thấy Bác sĩ chưa đăng ký lịch làm việc (Ca Sáng/Ca Chiều) cho ngày mai <strong className="text-gray-900">{tomorrowStr}</strong>. 
-                            <br/><br/>
+                            Hệ thống nhận thấy Bác sĩ chưa đăng ký lịch làm việc (Ca Sáng/Ca Chiều) cho ngày mai <strong className="text-gray-900">{tomorrowStr}</strong>.
+                            <br /><br />
                             Vui lòng cập nhật sớm nhất để bệnh nhân có thể chủ động đặt lịch thăm khám!
                         </p>
                         <div className="flex gap-3">
-                            <button 
+                            <button
                                 onClick={() => setShowReminder(false)}
                                 className="flex-1 px-4 py-2.5 text-gray-700 bg-gray-100 hover:bg-gray-200 font-bold rounded-xl transition-colors">
                                 Bỏ qua tạm thời
                             </button>
-                            <button 
+                            <button
                                 onClick={() => {
                                     setShowReminder(false);
                                     navigate('/admin/schedules');
@@ -140,6 +149,10 @@ export default function AdminLayout() {
                                 <Users className="w-5 h-5" />
                                 Quản lý người dùng
                             </Link>
+                            <Link to="/admin/payments" className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm transition-colors ${isActive('/payments') ? 'bg-primary text-white font-medium shadow-md shadow-primary/20' : 'hover:bg-white/5'}`}>
+                                <CreditCard className="w-5 h-5" />
+                                Quản lý thanh toán
+                            </Link>
                             <Link to="/admin/specialties" className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm transition-colors ${isActive('/specialties') ? 'bg-primary text-white font-medium shadow-md shadow-primary/20' : 'hover:bg-white/5'}`}>
                                 <Briefcase className="w-5 h-5" />
                                 Quản lý Chuyên khoa
@@ -148,10 +161,18 @@ export default function AdminLayout() {
                     )}
                 </nav>
 
-                <div className="p-4 mt-auto">
+                <div className="p-4 mt-auto space-y-2">
                     <button className="flex items-center justify-center gap-2 w-full bg-white/10 hover:bg-white/20 text-white px-4 py-3 rounded-xl text-sm font-medium transition-colors">
                         <Download className="w-4 h-4" />
                         Xuất báo cáo (PDF)
+                    </button>
+
+                    <button
+                        onClick={handleLogout}
+                        className="flex items-center justify-center gap-2 w-full bg-red-500/10 hover:bg-red-500/20 text-red-400 px-4 py-3 rounded-xl text-sm font-bold transition-all border border-red-500/10"
+                    >
+                        <LogOut className="w-4 h-4" />
+                        Đăng xuất
                     </button>
                 </div>
             </aside>
@@ -172,10 +193,22 @@ export default function AdminLayout() {
                         {path.includes('/users') && 'Quản lý người dùng, phân quyền'}
                         {path.includes('/specialties') && 'Quản lý chuyên khoa'}
                     </h1>
-                    <div className="flex items-center gap-4">
-                        <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm">
-                            A
+                    <div className="flex items-center gap-6">
+                        <div className="flex items-center gap-3">
+                            <div className="text-right hidden sm:block">
+                                <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest leading-none mb-1">
+                                    {role === 'ADMIN' ? 'Hệ thống' : 'Bác sĩ chuyên khoa'}
+                                </p>
+                                <p className="text-sm font-bold text-gray-700">
+                                    Xin chào, {role === 'DOCTOR' ? `BS. ${displayName}` : displayName}
+                                </p>
+                            </div>
+                            <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold text-lg shadow-sm border border-primary/10">
+                                {displayName ? displayName.charAt(0).toUpperCase() : 'A'}
+                            </div>
                         </div>
+
+                        <div className="h-8 w-[1px] bg-gray-100 mx-1"></div>
                     </div>
                 </header>
 
